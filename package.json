@@ -1,0 +1,28 @@
+{
+  "name": "bugsplat",
+  "version": "1.0.1",
+  "description": "error reporting for js",
+  "main": "bugsplat.js",
+  "scripts": {
+    "test": "jasmine-node spec/bugsplat.spec.js",
+    "e2e": "jasmine-node e2e/bugsplat.e2e.spec.js"
+  },
+  "keywords": [
+    "crash",
+    "report",
+    "reporting",
+    "unhandled",
+    "exception",
+    "error",
+    "err",
+    "bugsplat"
+  ],
+  "author": "@bobbyg603",
+  "license": "MIT",
+  "dependencies": {
+    "request": "^2.81.0"
+  },
+  "devDependencies": {
+    "jasmine-node": "^1.14.5"
+  }
+}
