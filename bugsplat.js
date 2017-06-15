@@ -51,26 +51,8 @@ module.exports = function(database, appName, appVersion) {
         
         const url = "https://" + database + ".bugsplat.com/post/js/";       
         const callstack = errCallStackAdapter(err); 
-        const form = {
-            "database": database,
-            "appName": appName,
-            "appVersion": appVersion,
-            "appKey": _appKey,
-            "user": _user,
-            "email": _email,
-            "description": _description,
-            "callstack": callstack
-        };
-
-        addAdditionalFilesToForm(form, _additionalFilePaths);
- 
-        console.log("BugSplat Error:", err);
-        console.log("BugSplat Url:", url);
-        console.log("BugSplat Form:", form);
-
-        request.post({
-            url: url,
-            form: form
+        const req = request.post({
+            url: url
         }, function(err, httpResponse, body) {
             if(err) {
                 console.error("BugSplat POST error:", err);
@@ -91,6 +73,21 @@ module.exports = function(database, appName, appVersion) {
                 }
             }
         });
+
+        const form = req.form();
+        form.append("database", database);
+        form.append("appName", appName);
+        form.append("appVersion", appVersion);
+        form.append("appKey", _appKey);
+        form.append("user", _user);
+        form.append("email", _email);
+        form.append("description", _description);
+        form.append("callstack", callstack);
+
+        addAdditionalFilesToForm(form, _additionalFilePaths);
+ 
+        console.log("BugSplat Error:", err);
+        console.log("BugSplat Url:", url);
     }
 
     return this;
@@ -101,15 +98,12 @@ function addAdditionalFilesToForm(form, additionalFilePaths) {
     for(var i = 0; i < additionalFilePaths.length; i++) {
         const filePath = additionalFilePaths[i];
         if(fs.existsSync(filePath)) {
-            const fileName = path.basename(filePath);
             const fileSize = fs.statSync(filePath).size;
             totalZipSize = totalZipSize + fileSize;
-            if(totalZipSize <= 1048576) { 
-                const fileContents = new Buffer(fs.readFileSync(filePath)).toString("base64"); // TODO BG can we have request do this for us?
-                const fileNameKey = "fileName" + (i + 1);
-                const optFileKey = "optFile" + (i + 1);
-                form[fileNameKey] = fileName;
-                form[optFileKey] = fileContents;
+            if(totalZipSize <= 1048576) {
+                const fileName = path.basename(filePath);
+                const fileContents = fs.createReadStream(filePath);
+                form.append(fileName, fileContents);
             } else {
                 console.error("BugSplat upload limit of 1MB exceeded, skipping file:", filePath);
                 totalZipSize = totalZipSize - fileSize;
