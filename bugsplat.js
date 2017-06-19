@@ -50,7 +50,7 @@ module.exports = function(database, appName, appVersion) {
     this.post = function(err) {
         
         const url = "https://" + database + ".bugsplat.com/post/js/";       
-        const callstack = errCallStackAdapter(err); 
+        const callstack = err.stack == null ? err : err.stack;
         const req = request.post({
             url: url
         }, function(err, httpResponse, body) {
@@ -112,11 +112,4 @@ function addAdditionalFilesToForm(form, additionalFilePaths) {
             console.error("BugSplat file doesn't exist at path:", filePath);
         }
     }
-}
-
-// TODO BG remove after fixing on backend
-// TODO BG make sure backend can handle empty callstacks
-function errCallStackAdapter(err) {
-    if(!err.stack) return err;
-    return err.stack.split("\n").join("\r\n"); // TODO BG fix on back-end
 }

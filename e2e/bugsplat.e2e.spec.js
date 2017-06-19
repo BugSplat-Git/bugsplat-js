@@ -39,10 +39,33 @@ describe("BugSplat", function() {
         bugsplat.post(error);
     }, 10000);
 
+    it("should post a crash with if err is not an Error object", (done) => {
+        const database = "fred";
+        const appName = "myJavaScriptCrasher";
+        const appVersion = "4.3.2.1";
+        const error = "error!";
+        const bugsplat = require("../bugsplat")(database, appName, appVersion);
+        const numberOfRequestsToSend = 3;
+        bugsplat.setCallback(function (err, body) {
+            if(err) {
+                done(err);
+            }
+            const expectedCrashId = body.crash_id;
+            getIndividualCrashData(database, expectedCrashId)
+                .then(function (crashData) {
+                    expect(crashData["appName"]).toBe(appName);
+                    expect(crashData["appVersion"]).toBe(appVersion);
+                    done();
+                });
+        });
+
+        bugsplat.post(error);
+    }, 10000);
+
     it("should return error if crash rate limit exceeded", (done) => {
         const database = "fred";
         const appName = "myJavaScriptCrasher";
-        const appVersion = "1.2.3.4";
+        const appVersion = "1.0.0.0";
         const error = new Error("dummy");
         const bugsplat = require("../bugsplat")(database, appName, appVersion);
         const numberOfRequestsToSend = 3;
