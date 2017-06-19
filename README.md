@@ -1,4 +1,4 @@
-[![BugSplat](http://d2wyodfx4ahj9g.cloudfront.net/wp-content/uploads/2015/06/BugSplat_crashreporting_splatter_dark_bs.png)](https://www.bugsplat.com)
+[![BugSplat](https://s3.amazonaws.com/bugsplat-public/npm/header.png)](https://www.bugsplat.com)
 ## Introduction
 BugSplat's JavaScript integration works with applications that support npm including Node.js, and Electron. Before continuing with the tutorial please make sure you have completed the following checklist:
 * [Register](http://www.bugsplat.com/account-registration/) as a new BugSplat user.
@@ -25,10 +25,10 @@ Throw an exception after the event handler has been added.
 ```js
 throw new Error("BugSplat!"));
 ```
-Navigate to the [All Crashes](https://www.bugsplat.com/allCrash/) page in BugSplat and you should see a new crash report for the application you just configured. Click the link in the Id column to see details about your crash on the [Individual Crash](https://www.bugsplat.com/individualCrash/) page:
+Navigate to the [All Crashes](https://www.bugsplat.com/allCrash/) page in BugSplat and you should see a new crash report for the application you just configured. Click the link in the Id column to see details about your crash on the [Individual Crash](https://www.bugsplat.com/individualCrash/?id=405) page:
 
-![AllCrash](https://beginquest.herokuapp.com/images/docs-images/javascript-crash-repoting-bugsplat-1.png)
-![IndividualCrash](https://beginquest.herokuapp.com/images/docs-images/javascript-crash-repoting-bugsplat-2.png)
+![AllCrash](https://s3.amazonaws.com/bugsplat-public/npm/allCrash.png)
+![IndividualCrash](https://s3.amazonaws.com/bugsplat-public/npm/individualCrash.png)
 
 That’s it! Your application is now configured to post crash reports to BugSplat.
 
