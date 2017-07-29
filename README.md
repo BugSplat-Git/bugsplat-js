@@ -1,4 +1,6 @@
 [![BugSplat](https://s3.amazonaws.com/bugsplat-public/npm/header.png)](https://www.bugsplat.com)
+
+![travis-ci](https://travis-ci.org/bobbyg603/bugsplat-js.svg?branch=master)
 ## Introduction
 BugSplat's JavaScript integration works with applications that support npm including Node.js, and Electron. Before continuing with the tutorial please make sure you have completed the following checklist:
 * [Register](http://www.bugsplat.com/account-registration/) as a new BugSplat user.
@@ -43,3 +45,5 @@ bugsplat.addAdditionalFile(pathToFile); // Path to a file to be added at post ti
 bugsplat.setCallback(callback); // Function that accepts 2 parameters (err, responseBody) that runs after post
 bugsplat.post(error); // Post an arbitrary Error object to BugSplat
 ```
+## Contributing
+BugSplat loves open source software! Please check out our project on [GitHub](https://github.com/bobbyg603/bugsplat-js) and send us a pull request.

@@ -1,0 +1,21 @@
+
+language: node_js
+dist: trusty
+
+node_js:
+  - '7'
+  - 'node'
+
+env:
+  global:
+    - DBUS_SESSION_BUS_ADDRESS=/dev/null
+    - DISPLAY=:99.0
+    - CHROME_BIN=chromium-browser
+
+install:
+  - npm install
+
+script:
+  - npm run test
+
+#sudo: required
