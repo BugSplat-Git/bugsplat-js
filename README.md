@@ -25,7 +25,7 @@ process.on("unhandledRejection", bugsplat.post);
 ```
 Throw an exception after the event handler has been added. 
 ```js
-throw new Error("BugSplat!"));
+throw new Error("BugSplat!");
 ```
 Navigate to the [All Crashes](https://www.bugsplat.com/allCrash/) page in BugSplat and you should see a new crash report for the application you just configured. Click the link in the Id column to see details about your crash on the [Individual Crash](https://www.bugsplat.com/individualCrash/?id=405) page:
 
