@@ -45,5 +45,17 @@ bugsplat.addAdditionalFile(pathToFile); // Path to a file to be added at post ti
 bugsplat.setCallback(callback); // Function that accepts 2 parameters (err, responseBody) that runs after post
 bugsplat.post(error); // Post an arbitrary Error object to BugSplat
 ```
+## Additional Considerations
+It is recommended that you exit and restart your application after an uncaughtException or unhandledRejection occurs. Configure bugsplat with the following callback to exit your application after an error has occured:
+```
+bugsplat.setCallback(function(error, responseBody) {
+    process.exit(1);
+});
+```
+Packages such as [pm2](https://www.npmjs.com/package/pm2) and [forever](https://www.npmjs.com/package/forever) can be configured to restart your application.
+
+Additionally you can use [domains](https://nodejs.org/api/domain.html#domain_warning_don_t_ignore_errors) to handle errors differently across various parts of your application. Domains are pending deprecation according the the Node.js [documentation](https://nodejs.org/api/domain.html), however a suitable replacement has not been added yet.
+
+More information regarding domain deprecation can be found [here](https://github.com/nodejs/node/issues/10843).
 ## Contributing
 BugSplat loves open source software! Please check out our project on [GitHub](https://github.com/bobbyg603/bugsplat-js) and send us a pull request.
