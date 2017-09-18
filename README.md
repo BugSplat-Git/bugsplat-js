@@ -1,6 +1,6 @@
 [![BugSplat](https://s3.amazonaws.com/bugsplat-public/npm/header.png)](https://www.bugsplat.com)
 
-![travis-ci](https://travis-ci.org/bobbyg603/bugsplat-js.svg?branch=master)
+![travis-ci](https://travis-ci.org/BugSplat-Git/bugsplat-js.svg?branch=master)
 ## Introduction
 BugSplat's JavaScript integration works with applications that support npm including Node.js, and Electron. Before continuing with the tutorial please make sure you have completed the following checklist:
 * [Register](http://www.bugsplat.com/account-registration/) as a new BugSplat user.
