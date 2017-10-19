@@ -1,6 +1,6 @@
 {
   "name": "bugsplat",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "error reporting for js",
   "main": "bugsplat.js",
   "scripts": {
