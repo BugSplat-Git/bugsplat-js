@@ -17,6 +17,12 @@
     "err",
     "bugsplat"
   ],
+  "homepage": "https://www.bugsplat.com",
+  "bugs": "https://github.com/BugSplat-Git/bugsplat-js/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BugSplat-Git/bugsplat-js"
+  },
   "author": "@bobbyg603",
   "license": "MIT",
   "dependencies": {
