@@ -19,11 +19,11 @@ describe("BugSplat", function() {
         bugsplat.setEmail(email);
         bugsplat.setDescription(description);
         bugsplat.addAdditionalFile(additionalFile);
-        bugsplat.setCallback(function (err, body) {
-            if(err) {
-                done(err);
+        bugsplat.setCallback(function (requestError, responseBody, originalError) {
+            if(requestError) {
+                done(requestError);
             }
-            const expectedCrashId = body.crash_id;
+            const expectedCrashId = responseBody.crash_id;
             getIndividualCrashData(database, expectedCrashId)
                 .then(function (crashData) {
                     expect(crashData["appName"]).toBe(appName);
@@ -39,18 +39,18 @@ describe("BugSplat", function() {
         bugsplat.post(error);
     }, 10000);
 
-    it("should post a crash with if err is not an Error object", (done) => {
+    it("should post a crash if errorToPost is not an Error object", (done) => {
         const database = "fred";
         const appName = "myJavaScriptCrasher";
         const appVersion = "4.3.2.1";
-        const error = "error!";
+        const errorToPost = "error!";
         const bugsplat = require("../bugsplat")(database, appName, appVersion);
         const numberOfRequestsToSend = 3;
-        bugsplat.setCallback(function (err, body) {
-            if(err) {
-                done(err);
+        bugsplat.setCallback(function (requestError, responseBody, originalError) {
+            if(requestError) {
+                done(requestError);
             }
-            const expectedCrashId = body.crash_id;
+            const expectedCrashId = responseBody.crash_id;
             getIndividualCrashData(database, expectedCrashId)
                 .then(function (crashData) {
                     expect(crashData["appName"]).toBe(appName);
@@ -59,7 +59,7 @@ describe("BugSplat", function() {
                 });
         });
 
-        bugsplat.post(error);
+        bugsplat.post(errorToPost);
     }, 10000);
 
     it("should return error if crash rate limit exceeded", (done) => {
@@ -68,11 +68,12 @@ describe("BugSplat", function() {
         const appVersion = "1.0.0.0";
         const error = new Error("dummy");
         const bugsplat = require("../bugsplat")(database, appName, appVersion);
-        const numberOfRequestsToSend = 3;
-        bugsplat.setCallback(function (err, body) {
-            if(err) {
-                expect(err.message).toContain("Rate limit of one crash per second exceeded");
-                expect(body).toBe(null);
+        const numberOfRequestsToSend = 6;
+        bugsplat.setCallback(function (requestError, responseBody, originalError) {
+            if(requestError) {
+                expect(requestError.message).toContain("Rate limit of one crash per second exceeded");
+                expect(originalError.message).toEqual(error.message);
+                expect(responseBody).toBe(null);
                 done();
             }
         });
@@ -80,6 +81,15 @@ describe("BugSplat", function() {
         for(let i = 0; i < numberOfRequestsToSend; i++) {
             bugsplat.post(error);
         }
+    }, 10000);
+
+    it("should call the callback function", (done) => {
+        const bugsplat = require("../bugsplat")("fred", "myJavaScriptCrasher", "1.0.0.0");
+        bugsplat.setCallback(function (requestError, responseBody) {
+            done(); // If done is not called the test times out and fails
+        });
+
+        bugsplat.post(new Error("dummy"));
     }, 10000);
 
     function getIndividualCrashData(database, crashId) {
@@ -101,7 +111,7 @@ describe("BugSplat", function() {
     function getIndividualCrashDataRequestOptions(database, crashId, cookieJar) {
         return {
             method: "GET",
-            url: "https://www.bugsplat.com/individualCrash?database=" + database + "&id=" + crashId + "&data",
+            url: "https://app.bugsplat.com/individualCrash?database=" + database + "&id=" + crashId + "&data",
             headers:
             {
                 'cache-control': 'no-cache',
@@ -118,9 +128,11 @@ describe("BugSplat", function() {
                 if (error) throw new Error(error);
                 console.log("POST login status code:", response.statusCode);
                 response.headers['set-cookie'].forEach(function (cookie) {
-                    cookieJar.setCookie(cookie);
+                    if(cookie.includes("PHPSESSID")) {
+                        cookieJar.setCookie(cookie);
+                        resolve();
+                    }
                 });
-                resolve();
             });
         });
     }
@@ -128,7 +140,7 @@ describe("BugSplat", function() {
     function getLoginPostRequestOptions(username, password, cookieJar) {
         return {
             method: 'POST',
-            url: 'https://www.bugsplat.com/login',
+            url: 'https://app.bugsplat.com/api/authenticate.php',
             headers:
             {
                 'cache-control': 'no-cache',
@@ -137,10 +149,11 @@ describe("BugSplat", function() {
             form:
             {
                 Sender: 'sales%40bugsplatsoftware.com',
-                currusername: username,
-                currpasswd: password,
+                email: username,
+                password: password,
                 Login: 'Login'
             },
+            followAllRedirects: true,
             jar: cookieJar
         };
     }

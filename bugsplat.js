@@ -47,29 +47,29 @@ module.exports = function(database, appName, appVersion) {
         _additionalFilePaths.push(filePath);
     };
 
-    this.post = function(err) {
+    this.post = function(errorToPost) {
         
         const url = "https://" + database + ".bugsplat.com/post/js/";       
-        const callstack = err.stack == null ? err : err.stack;
+        const callstack = errorToPost.stack == null ? errorToPost : errorToPost.stack;
         const req = request.post({
             url: url
-        }, function(err, httpResponse, body) {
-            if(err) {
-                console.error("BugSplat POST error:", err);
+        }, function(requestErr, httpResponse, responseBody) {
+            if(requestErr) {
+                _callback(requestErr, null, errorToPost);
                 return;
             }
             console.log("BugSplat POST status code:", httpResponse.statusCode);
-            console.log("BugSplat POST response body:", body);
+            console.log("BugSplat POST response body:", responseBody);
             setDescription("");
             if(_callback) {
-                if(httpResponse.statusCode == 200 && body) {
-                    _callback(null, JSON.parse(body));
+                if(httpResponse.statusCode == 200 && responseBody) {
+                    _callback(null, JSON.parse(responseBody), errorToPost);
                 } else if(httpResponse.statusCode == 400) {
-                    _callback(new Error("BugSplat Error: " + body), null);
+                    _callback(new Error("BugSplat Error: " + responseBody), null, errorToPost);
                 } else if(httpResponse.statusCode == 429) {
-                    _callback(new Error("BugSplat Error: Rate limit of one crash per second exceeded"), null);
+                    _callback(new Error("BugSplat Error: Rate limit of one crash per second exceeded"), null, errorToPost);
                 } else {
-                    _callback(new Error("BugSplat Error: Unknown error"), null);
+                    _callback(new Error("BugSplat Error: Unknown error"), null, errorToPost);
                 }
             }
         });
@@ -86,7 +86,7 @@ module.exports = function(database, appName, appVersion) {
 
         addAdditionalFilesToForm(form, _additionalFilePaths);
  
-        console.log("BugSplat Error:", err);
+        console.log("BugSplat Error:", errorToPost);
         console.log("BugSplat Url:", url);
     }
 
