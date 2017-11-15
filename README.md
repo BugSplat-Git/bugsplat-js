@@ -42,13 +42,13 @@ bugsplat.setUser(user); // The name or id of your user
 bugsplat.setEmail(email); // The email of your user
 bugsplat.setDescription(description); // Additional info about your crash that gets reset after every post
 bugsplat.addAdditionalFile(pathToFile); // Path to a file to be added at post time (limit 1MB)
-bugsplat.setCallback(callback); // Function that accepts 2 parameters (err, responseBody) that runs after post
+bugsplat.setCallback(callback); // Callback is passed 3 parameters (requestError, responseBody, originalError) and runs after bugsplat.post
 bugsplat.post(error); // Post an arbitrary Error object to BugSplat
 ```
 ## Additional Considerations
 It is recommended that you exit and restart your application after an uncaughtException or unhandledRejection occurs. Configure bugsplat with the following callback to exit your application after an error has occured:
 ```
-bugsplat.setCallback(function(error, responseBody) {
+bugsplat.setCallback(function(error, responseBody, originalError) {
     process.exit(1);
 });
 ```
