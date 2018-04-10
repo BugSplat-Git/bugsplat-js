@@ -24,11 +24,17 @@ If your application uses promises you will also want to listen for unhandled pro
 process.on("unhandledRejection", bugsplat.postAndExit);
 ```
 
+Throw an exception after the event handler has been added. 
+```js
+throw new Error("BugSplat!");
+```
+
 You can also use bugsplat-js to post errors from non-fatal promise rejections and errors that originate inside of try-catch blocks:
 ```js
 Promise.reject(new Error("BugSplat!"))
     .catch(err => bugsplat.post(err, callback));
-
+```
+```js
 try {
     throw new Error("BugSplat");
 } catch(err) {
@@ -36,11 +42,7 @@ try {
 }
 ```
 
-Throw an exception after the event handler has been added. 
-```js
-throw new Error("BugSplat!");
-```
-Navigate to the [All Crashes](https://www.bugsplat.com/allCrash/) page in BugSplat and you should see a new crash report for the application you just configured. Click the link in the Id column to see details about your crash on the [Individual Crash](https://www.bugsplat.com/individualCrash/?id=405) page:
+After posting an error with bugsplat-js, navigate to the [All Crashes](https://www.bugsplat.com/allCrash/) page. You should see a new crash report for the application you just configured. Click the link in the Id column to see details about your crash on the [Individual Crash](https://www.bugsplat.com/individualCrash/?id=405) page:
 
 ![AllCrash](https://s3.amazonaws.com/bugsplat-public/npm/allCrash.png)
 ![IndividualCrash](https://s3.amazonaws.com/bugsplat-public/npm/individualCrash.png)
@@ -50,13 +52,13 @@ That’s it! Your application is now configured to post crash reports to BugSpla
 ## API
 In addition to the configuration demonstrated above, there are a few public methods that can be used to customize your BugSplat integration:
 ```js
-bugsplat.setAppKey(appKey); // A unique identifier for your application
+bugsplat.setAppKey(appKey); // Additional metadata that can be queried via BugSplat's web application
 bugsplat.setUser(user); // The name or id of your user
 bugsplat.setEmail(email); // The email of your user
 bugsplat.setDescription(description); // Additional info about your crash that gets reset after every post
 bugsplat.addAdditionalFile(pathToFile); // Path to a file to be added at post time (limit 1MB)
-bugsplat.post(error, callback); // Post an arbitrary Error object to BugSplat with callback that accepts 2 parameters (err, responseBody)
-bugsplat.postAndExit(error); // Wrapper for post that calls process.exit() after posting error to BugSplat
+bugsplat.post(error, callback); // Post an arbitrary Error object to BugSplat with a callback that accepts 3 parameters (requestError, responseBody, originalError)
+bugsplat.postAndExit(error); // Wrapper for post that calls process.exit(1) after posting error to BugSplat
 ```
 ## Additional Considerations
 It is recommended that you exit and restart your application after an uncaughtException or unhandledRejection occurs. Packages such as [pm2](https://www.npmjs.com/package/pm2) and [forever](https://www.npmjs.com/package/forever) can be configured to restart your application.
