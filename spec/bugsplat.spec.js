@@ -52,4 +52,9 @@ describe("BugSplat", function () {
         expect(console.error).toHaveBeenCalledWith(expectedMessage, largeFileName);
         expect(console.error).not.toHaveBeenCalledWith(expectedMessage, additionalFileName)
     });
+
+    it("should call the callback function", (done) => {
+        const bugsplat = require("../bugsplat")("fred", "myJavaScriptCrasher", "1.0.0.0");
+        bugsplat.post(new Error("dummy"), (err, body) => done());
+    });
 });

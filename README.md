@@ -13,16 +13,29 @@ npm install --save bugsplat
 ```
 Require the bugsplat module at the entry point of your application. Provide the name of your BugSplat database, the name of your application and the version of your application:
  ```js
- const bugsplat = require("bugsplat")("DatabaseName", "ApplicationName", "1.0.0.0");
+ const bugsplat = require("bugsplat")("DatabaseName", "AppName", "1.0.0.0");
  ```
 Set the bugsplat.post function as an event handler for uncaught exceptions:
 ```js
-process.on("uncaughtException", bugsplat.post);
+process.on("uncaughtException", bugsplat.postAndExit);
 ```
 If your application uses promises you will also want to listen for unhandled promise rejections. Please note that this will only work for native promises:
 ```js
-process.on("unhandledRejection", bugsplat.post);
+process.on("unhandledRejection", bugsplat.postAndExit);
 ```
+
+You can also use bugsplat-js to post errors from non-fatal promise rejections and errors that originate inside of try-catch blocks:
+```js
+Promise.reject(new Error("BugSplat!"))
+    .catch(err => bugsplat.post(err, callback));
+
+try {
+    throw new Error("BugSplat");
+} catch(err) {
+    bugsplat.post(err, callback);
+}
+```
+
 Throw an exception after the event handler has been added. 
 ```js
 throw new Error("BugSplat!");
@@ -42,17 +55,11 @@ bugsplat.setUser(user); // The name or id of your user
 bugsplat.setEmail(email); // The email of your user
 bugsplat.setDescription(description); // Additional info about your crash that gets reset after every post
 bugsplat.addAdditionalFile(pathToFile); // Path to a file to be added at post time (limit 1MB)
-bugsplat.setCallback(callback); // Callback is passed 3 parameters (requestError, responseBody, originalError) and runs after bugsplat.post
-bugsplat.post(error); // Post an arbitrary Error object to BugSplat
+bugsplat.post(error, callback); // Post an arbitrary Error object to BugSplat with callback that accepts 2 parameters (err, responseBody)
+bugsplat.postAndExit(error); // Wrapper for post that calls process.exit() after posting error to BugSplat
 ```
 ## Additional Considerations
-It is recommended that you exit and restart your application after an uncaughtException or unhandledRejection occurs. Configure bugsplat with the following callback to exit your application after an error has occured:
-```
-bugsplat.setCallback(function(error, responseBody, originalError) {
-    process.exit(1);
-});
-```
-Packages such as [pm2](https://www.npmjs.com/package/pm2) and [forever](https://www.npmjs.com/package/forever) can be configured to restart your application.
+It is recommended that you exit and restart your application after an uncaughtException or unhandledRejection occurs. Packages such as [pm2](https://www.npmjs.com/package/pm2) and [forever](https://www.npmjs.com/package/forever) can be configured to restart your application.
 
 Additionally you can use [domains](https://nodejs.org/api/domain.html#domain_warning_don_t_ignore_errors) to handle errors differently across various parts of your application. Domains are pending deprecation according the the Node.js [documentation](https://nodejs.org/api/domain.html), however a suitable replacement has not been added yet.
 

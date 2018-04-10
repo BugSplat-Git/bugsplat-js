@@ -21,12 +21,11 @@ describe("BugSplat", function() {
         });
         const bugsplat = require("../bugsplat")("fred", "myJavaScriptCrasher", "1.0.0.0");
         mock.reRequire("../bugsplat");
-        bugsplat.setCallback(function (requestError, responseBody, originalError) {
+        bugsplat.post(errorToPost, function (requestError, responseBody, originalError) {
             expect(responseBody.status).toEqual(expectedStatus);
             expect(responseBody.crash_id).toEqual(expectedCrashId);
             expect(originalError.message).toEqual(errorToPost.message);
             done();
         });
-        bugsplat.post(errorToPost);
     });
 });
