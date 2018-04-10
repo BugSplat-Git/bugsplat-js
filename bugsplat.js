@@ -21,8 +21,7 @@ module.exports = function(database, appName, appVersion) {
     let _email = "";
     let _description = "";
     let _appKey = "";
-    let _callback;
-
+    
     this.setAppKey = function(appKey) {
         _appKey = appKey;
     };
@@ -39,15 +38,11 @@ module.exports = function(database, appName, appVersion) {
         _description = description;
     };
 
-    this.setCallback = function(callback) {
-        _callback = callback;
-    };
-
     this.addAdditionalFile = function(filePath) {
         _additionalFilePaths.push(filePath);
     };
 
-    this.post = function(errorToPost) {
+    this.post = function(errorToPost, callback) {
         
         const url = "https://" + database + ".bugsplat.com/post/js/";       
         const callstack = errorToPost.stack == null ? errorToPost : errorToPost.stack;
@@ -55,21 +50,21 @@ module.exports = function(database, appName, appVersion) {
             url: url
         }, function(requestErr, httpResponse, responseBody) {
             if(requestErr) {
-                _callback(requestErr, null, errorToPost);
+                callback(requestErr, null, errorToPost);
                 return;
             }
             console.log("BugSplat POST status code:", httpResponse.statusCode);
             console.log("BugSplat POST response body:", responseBody);
             setDescription("");
-            if(_callback) {
+            if(callback) {
                 if(httpResponse.statusCode == 200 && responseBody) {
-                    _callback(null, JSON.parse(responseBody), errorToPost);
+                    callback(null, JSON.parse(responseBody), errorToPost);
                 } else if(httpResponse.statusCode == 400) {
-                    _callback(new Error("BugSplat Error: " + responseBody), null, errorToPost);
+                    callback(new Error("BugSplat Error: " + responseBody), null, errorToPost);
                 } else if(httpResponse.statusCode == 429) {
-                    _callback(new Error("BugSplat Error: Rate limit of one crash per second exceeded"), null, errorToPost);
+                    callback(new Error("BugSplat Error: Rate limit of one crash per second exceeded"), null, errorToPost);
                 } else {
-                    _callback(new Error("BugSplat Error: Unknown error"), null, errorToPost);
+                    callback(new Error("BugSplat Error: Unknown error"), null, errorToPost);
                 }
             }
         });
@@ -88,6 +83,10 @@ module.exports = function(database, appName, appVersion) {
  
         console.log("BugSplat Error:", errorToPost);
         console.log("BugSplat Url:", url);
+    }
+
+    this.postAndExit = function(err) {
+        this.post(err, (response) => process.exit(1));
     }
 
     return this;

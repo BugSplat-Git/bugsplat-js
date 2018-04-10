@@ -4,8 +4,8 @@
   "description": "error reporting for js",
   "main": "bugsplat.js",
   "scripts": {
-    "test": "jasmine-node spec/bugsplat.spec.js && jasmine-node spec/bugsplat.callback.success.spec.js && jasmine-node spec/bugsplat.callback.error.spec.js",
-    "e2e": "jasmine-node e2e/bugsplat.e2e.spec.js"
+    "test": "jasmine spec/bugsplat.spec.js && jasmine spec/bugsplat.callback.success.spec.js && jasmine spec/bugsplat.callback.error.spec.js",
+    "e2e": "jasmine e2e/bugsplat.e2e.spec.js"
   },
   "keywords": [
     "crash",
@@ -29,7 +29,7 @@
     "request": "^2.81.0"
   },
   "devDependencies": {
-    "jasmine-node": "^1.14.5",
+    "jasmine": "^3.1.0",
     "mock-require": "^2.0.2",
     "sinon": "^4.1.2"
   }
