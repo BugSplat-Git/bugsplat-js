@@ -16,12 +16,12 @@ describe("BugSplat", function () {
         const description = "Description!";
         const additionalFile = "./e2e/files/additionalFile.txt";
         const bugsplat = require("../bugsplat")(database, appName, appVersion);
-        bugsplat.setAppKey(appKey);
-        bugsplat.setUser(user);
-        bugsplat.setEmail(email);
-        bugsplat.setDescription(description);
+        bugsplat.setDefaultAppKey(appKey);
+        bugsplat.setDefaultUser(user);
+        bugsplat.setDefaultEmail(email);
+        bugsplat.setDefaultDescription(description);
         bugsplat.addAdditionalFile(additionalFile);
-        bugsplat.post(error, function (requestError, responseBody, originalError) {
+        bugsplat.post(error, {}, function (requestError, responseBody, originalError) {
             if (requestError) {
                 done(requestError);
             }
@@ -46,7 +46,7 @@ describe("BugSplat", function () {
         const errorToPost = "error!";
         const bugsplat = require("../bugsplat")(database, appName, appVersion);
         const numberOfRequestsToSend = 3;
-        bugsplat.post(errorToPost, function (requestError, responseBody, originalError) {
+        bugsplat.post(errorToPost, {}, function (requestError, responseBody, originalError) {
             if (requestError) {
                 done(requestError);
             }
@@ -70,7 +70,7 @@ describe("BugSplat", function () {
         const numberOfRequestsToSend = 3;
 
         for (let i = 0; i < numberOfRequestsToSend; i++) {
-            bugsplat.post(error, function (responseError, responseBody, originalError) {
+            bugsplat.post(error, {}, function (responseError, responseBody, originalError) {
                 if (responseError) {
                     expect(responseError.message).toContain("Rate limit of one crash per second exceeded");
                     expect(responseBody).toBeNull();
@@ -78,11 +78,6 @@ describe("BugSplat", function () {
                 }
             });
         }
-    }, 10000);
-
-    it("should call the callback function", (done) => {
-        const bugsplat = require("../bugsplat")("fred", "myJavaScriptCrasher", "1.0.0.0");
-        bugsplat.post(new Error("dummy"), (responseError, responseBody, originalError) => done()); // If done is not called the test times out and fails
     }, 10000);
 
     function getIndividualCrashData(database, crashId) {
