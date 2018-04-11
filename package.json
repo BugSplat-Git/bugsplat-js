@@ -4,7 +4,7 @@
   "description": "error reporting for js",
   "main": "bugsplat.js",
   "scripts": {
-    "test": "jasmine spec/bugsplat.spec.js && jasmine spec/bugsplat.callback.success.spec.js && jasmine spec/bugsplat.callback.error.spec.js",
+    "test": "jasmine spec/bugsplat.spec.js",
     "e2e": "jasmine e2e/bugsplat.e2e.spec.js"
   },
   "keywords": [
@@ -29,8 +29,6 @@
     "request": "^2.81.0"
   },
   "devDependencies": {
-    "jasmine": "^3.1.0",
-    "mock-require": "^2.0.2",
-    "sinon": "^4.1.2"
+    "jasmine": "^3.1.0"
   }
 }

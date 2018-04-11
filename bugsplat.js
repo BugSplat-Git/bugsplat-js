@@ -17,33 +17,43 @@ module.exports = function(database, appName, appVersion) {
     }
 
     const _additionalFilePaths = [];
-    let _user = "";
-    let _email = "";
-    let _description = "";
-    let _appKey = "";
+    let _defaultUser = "";
+    let _defaultEmail = "";
+    let _defaultDescription = "";
+    let _defaultAppKey = "";
+
+    this._request = request;
     
-    this.setAppKey = function(appKey) {
-        _appKey = appKey;
+    this.setDefaultAppKey = function(appKey) {
+        _defaultAppKey = appKey;
     };
 
-    this.setUser = function(user) {
-        _user = user;
+    this.setDefaultUser = function(user) {
+        _defaultUser = user;
     };
 
-    this.setEmail = function(email) {
-        _email = email;
+    this.setDefaultEmail = function(email) {
+        _defaultEmail = email;
     };
 
-    this.setDescription = function(description) {
-        _description = description;
+    this.setDefaultDescription = function(description) {
+        _defaultDescription = description;
     };
 
     this.addAdditionalFile = function(filePath) {
         _additionalFilePaths.push(filePath);
     };
 
-    this.post = function(errorToPost, callback) {
+    this.post = function(errorToPost, options, callback) {
         
+        options = options || {};
+        callback = callback || ((requestError, responseBody, originalError) => {});
+
+        const appKey = options.appKey || _defaultAppKey;
+        const user = options.user || _defaultUser;
+        const email = options.email || _defaultEmail;
+        const description = options.description || _defaultDescription;
+
         const url = "https://" + database + ".bugsplat.com/post/js/";       
         const callstack = errorToPost.stack == null ? errorToPost : errorToPost.stack;
         const req = request.post({
@@ -55,17 +65,14 @@ module.exports = function(database, appName, appVersion) {
             }
             console.log("BugSplat POST status code:", httpResponse.statusCode);
             console.log("BugSplat POST response body:", responseBody);
-            setDescription("");
-            if(callback) {
-                if(httpResponse.statusCode == 200 && responseBody) {
-                    callback(null, JSON.parse(responseBody), errorToPost);
-                } else if(httpResponse.statusCode == 400) {
-                    callback(new Error("BugSplat Error: " + responseBody), null, errorToPost);
-                } else if(httpResponse.statusCode == 429) {
-                    callback(new Error("BugSplat Error: Rate limit of one crash per second exceeded"), null, errorToPost);
-                } else {
-                    callback(new Error("BugSplat Error: Unknown error"), null, errorToPost);
-                }
+            if(httpResponse.statusCode == 200 && responseBody) {
+                callback(null, JSON.parse(responseBody), errorToPost);
+            } else if(httpResponse.statusCode == 400) {
+                callback(new Error("BugSplat Error: " + responseBody), null, errorToPost);
+            } else if(httpResponse.statusCode == 429) {
+                callback(new Error("BugSplat Error: Rate limit of one crash per second exceeded"), null, errorToPost);
+            } else {
+                callback(new Error("BugSplat Error: Unknown error"), null, errorToPost);
             }
         });
 
@@ -73,10 +80,10 @@ module.exports = function(database, appName, appVersion) {
         form.append("database", database);
         form.append("appName", appName);
         form.append("appVersion", appVersion);
-        form.append("appKey", _appKey);
-        form.append("user", _user);
-        form.append("email", _email);
-        form.append("description", _description);
+        form.append("appKey", appKey);
+        form.append("user", user);
+        form.append("email", email);
+        form.append("description", description);
         form.append("callstack", callstack);
 
         addAdditionalFilesToForm(form, _additionalFilePaths);
@@ -85,8 +92,8 @@ module.exports = function(database, appName, appVersion) {
         console.log("BugSplat Url:", url);
     }
 
-    this.postAndExit = function(err) {
-        this.post(err, (response) => process.exit(1));
+    this.postAndExit = (err) => {
+        this.post(err, {}, (requestError, responseBody, originalError) => process.exit(1));
     }
 
     return this;

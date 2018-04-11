@@ -32,13 +32,13 @@ throw new Error("BugSplat!");
 You can also use bugsplat-js to post errors from non-fatal promise rejections and errors that originate inside of try-catch blocks:
 ```js
 Promise.reject(new Error("BugSplat!"))
-    .catch(err => bugsplat.post(err, callback));
+    .catch(err => bugsplat.post(err, {}, callback));
 ```
 ```js
 try {
     throw new Error("BugSplat");
 } catch(err) {
-    bugsplat.post(err, callback);
+    bugsplat.post(err, {}, callback);
 }
 ```
 
@@ -52,13 +52,15 @@ That’s it! Your application is now configured to post crash reports to BugSpla
 ## API
 In addition to the configuration demonstrated above, there are a few public methods that can be used to customize your BugSplat integration:
 ```js
-bugsplat.setAppKey(appKey); // Additional metadata that can be queried via BugSplat's web application
-bugsplat.setUser(user); // The name or id of your user
-bugsplat.setEmail(email); // The email of your user
-bugsplat.setDescription(description); // Additional info about your crash that gets reset after every post
+bugsplat.setDefaultAppKey(appKey); // Additional metadata that can be queried via BugSplat's web application
+bugsplat.setDefaultUser(user); // The name or id of your user
+bugsplat.setDefaultEmail(email); // The email of your user
+bugsplat.setDefaultDescription(description); // Additional info about your crash that gets reset after every post
 bugsplat.addAdditionalFile(pathToFile); // Path to a file to be added at post time (limit 1MB)
-bugsplat.post(error, callback); // Post an arbitrary Error object to BugSplat with a callback that accepts 3 parameters (requestError, responseBody, originalError)
 bugsplat.postAndExit(error); // Wrapper for post that calls process.exit(1) after posting error to BugSplat
+bugsplat.post(error, options, callback); // Posts an arbitrary Error object to BugSplat
+// If the values options.appKey, options.user, options.email or options.description are set the corresponding default values will be overwritten
+// The callback is a function that accepts 3 parameters requestError, responseBody, originalError where orignalError is the error that was posted to BugSplat
 ```
 ## Additional Considerations
 It is recommended that you exit and restart your application after an uncaughtException or unhandledRejection occurs. Packages such as [pm2](https://www.npmjs.com/package/pm2) and [forever](https://www.npmjs.com/package/forever) can be configured to restart your application.
