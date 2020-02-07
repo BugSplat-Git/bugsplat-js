@@ -69,4 +69,4 @@ Additionally you can use [domains](https://nodejs.org/api/domain.html#domain_war
 
 More information regarding domain deprecation can be found [here](https://github.com/nodejs/node/issues/10843).
 ## Contributing
-BugSplat loves open source software! Please check out our project on [GitHub](https://github.com/bobbyg603/bugsplat-js) and send us a pull request.
+BugSplat loves open source software! Please check out our project on [GitHub](https://github.com/bobbyg603/bugsplat-js) and send us a Pull Request.
