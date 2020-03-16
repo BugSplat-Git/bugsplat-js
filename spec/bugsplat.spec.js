@@ -165,6 +165,24 @@ describe("BugSplat", function () {
         expect(result.original.message).toEqual(errorToPost.message);
     });
 
+    it("should return BugSplat error, response body and original error if BugSplat POST returns 429", async () => {
+        const errorToPost = new Error("BugSplat!")
+        bugsplat._fetch.and.returnValue({ status: 429, json: async () => ({}) });
+
+        const result = await bugsplat.post(errorToPost, {});
+        expect(result.error.message).toEqual("BugSplat Error: Rate limit of one crash per second exceeded");
+        expect(result.original.message).toEqual(errorToPost.message);
+    });
+
+    it("should return BugSplat error, response body and original error for unknown BugSplat POST error", async () => {
+        const errorToPost = new Error("BugSplat!")
+        bugsplat._fetch.and.returnValue({ status: 500, json: async () => ({}), ok: false });
+
+        const result = await bugsplat.post(errorToPost, {});
+        expect(result.error.message).toEqual("BugSplat Error: Unknown error");
+        expect(result.original.message).toEqual(errorToPost.message);
+    });
+
     async function createDefaultPropertyTest(bugsplat, propertyName, propertyValue, propertySetter = (value) => {}) {
         bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
