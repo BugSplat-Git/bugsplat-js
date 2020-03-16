@@ -5,7 +5,8 @@
   "main": "bugsplat.js",
   "scripts": {
     "test": "jasmine spec/bugsplat.spec.js",
-    "e2e": "jasmine e2e/bugsplat.e2e.spec.js"
+    "e2e": "jasmine e2e/bugsplat.e2e.spec.js",
+    "dist": "mkdir  -p ./dist && cp ./{bugsplat.js,package.json,README.md} ./dist"
   },
   "keywords": [
     "crash",
