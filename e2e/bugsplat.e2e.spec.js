@@ -26,12 +26,12 @@ describe("BugSplat", function () {
                 done(requestError);
             }
             const expectedCrashId = responseBody.crash_id;
-            getIndividualCrashData(database, expectedCrashId)
+            getCrashData(database, expectedCrashId)
                 .then(function (crashData) {
                     expect(crashData["appName"]).toEqual(appName);
                     expect(crashData["appVersion"]).toEqual(appVersion);
-                    expect(crashData["appDescription"]).toEqual(appKey);
-                    expect(crashData["additionalInfo"]).toEqual(description);
+                    expect(crashData["appKey"]).toEqual(appKey);
+                    expect(crashData["description"]).toEqual(description);
                     expect(crashData["user"]).toBeTruthy() // Fred has PII obfuscated so the best we can do here is to check if truthy
                     expect(crashData["email"]).toBeTruthy()  // Fred has PII obfuscated so the best we can do here is to check if truthy
                     done();
@@ -51,7 +51,7 @@ describe("BugSplat", function () {
                 done(requestError);
             }
             const expectedCrashId = responseBody.crash_id;
-            getIndividualCrashData(database, expectedCrashId)
+            getCrashData(database, expectedCrashId)
                 .then(function (crashData) {
                     expect(crashData["appName"]).toEqual(appName);
                     expect(crashData["appVersion"]).toEqual(appVersion);
@@ -67,7 +67,7 @@ describe("BugSplat", function () {
         const appVersion = "1.0.0.0";
         const error = new Error("dummy");
         const bugsplat = require("../bugsplat")(database, appName, appVersion);
-        const numberOfRequestsToSend = 3;
+        const numberOfRequestsToSend = 10;
 
         for (let i = 0; i < numberOfRequestsToSend; i++) {
             bugsplat.post(error, {}, function (responseError, responseBody, originalError) {
@@ -78,14 +78,14 @@ describe("BugSplat", function () {
                 }
             });
         }
-    }, 10000);
+    }, 30000);
 
-    function getIndividualCrashData(database, crashId) {
+    function getCrashData(database, crashId) {
         return new Promise(function (resolve, reject) {
             const cookieJar = request.jar();
             postLogin(username, password, cookieJar)
                 .then(function () {
-                    const getOptions = getIndividualCrashDataRequestOptions(database, crashId, cookieJar);
+                    const getOptions = getCrashDataRequestOptions(database, crashId, cookieJar);
                     request(getOptions, function (error, response, body) {
                         if (error) throw new Error(error);
                         console.log("GET individualCrash status code:", response.statusCode);
@@ -96,14 +96,13 @@ describe("BugSplat", function () {
         });
     }
 
-    function getIndividualCrashDataRequestOptions(database, crashId, cookieJar) {
+    function getCrashDataRequestOptions(database, crashId, cookieJar) {
         return {
             method: "GET",
-            url: appBaseUrl + "/individualCrash/",
+            url: appBaseUrl + "/api/crash/data",
             qs: {
                 "database": database,
                 "id": crashId,
-                "data": ""
             },
             headers:
                 {
@@ -134,7 +133,7 @@ describe("BugSplat", function () {
     function getLoginPostRequestOptions(username, password, cookieJar) {
         return {
             method: 'POST',
-            url: appBaseUrl + '/api/authenticate.php',
+            url: appBaseUrl + '/api/authenticatev3.php',
             headers:
                 {
                     'cache-control': 'no-cache',
@@ -142,7 +141,6 @@ describe("BugSplat", function () {
                 },
             form:
                 {
-                    Sender: 'sales%40bugsplatsoftware.com',
                     email: username,
                     password: password,
                     Login: 'Login'
