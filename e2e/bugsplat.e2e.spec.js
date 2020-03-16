@@ -5,11 +5,11 @@ const appBaseUrl = "https://app.bugsplat.com";
 
 describe("BugSplat", function () {
 
-    it("should post a crash report with all provided information", (done) => {
+    it("should post a crash report with all provided information", async () => {
         const database = "fred";
-        const appName = "myJavaScriptCrasher";
+        const appName = "my-node-crasher";
         const appVersion = "1.2.3.4";
-        const error = new Error("dummy");
+        const error = new Error("BugSplat!!");
         const appKey = "Key!";
         const user = "User!";
         const email = "fred@bedrock.com";
@@ -20,60 +20,54 @@ describe("BugSplat", function () {
         bugsplat.setDefaultUser(user);
         bugsplat.setDefaultEmail(email);
         bugsplat.setDefaultDescription(description);
-        bugsplat.addAdditionalFile(additionalFile);
-        bugsplat.post(error, {}, function (requestError, responseBody, originalError) {
-            if (requestError) {
-                done(requestError);
-            }
-            const expectedCrashId = responseBody.crash_id;
-            getCrashData(database, expectedCrashId)
-                .then(function (crashData) {
-                    expect(crashData["appName"]).toEqual(appName);
-                    expect(crashData["appVersion"]).toEqual(appVersion);
-                    expect(crashData["appKey"]).toEqual(appKey);
-                    expect(crashData["description"]).toEqual(description);
-                    expect(crashData["user"]).toBeTruthy() // Fred has PII obfuscated so the best we can do here is to check if truthy
-                    expect(crashData["email"]).toBeTruthy()  // Fred has PII obfuscated so the best we can do here is to check if truthy
-                    done();
-                });
-        });
+        bugsplat.setDefaultAdditionalFilePaths([additionalFile]);
+        const result = await bugsplat.post(error, {});
+        
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        const expectedCrashId = result.response.crash_id;
+        const crashData = await getCrashData(database, expectedCrashId);
+
+        expect(crashData["appName"]).toEqual(appName);
+        expect(crashData["appVersion"]).toEqual(appVersion);
+        expect(crashData["appKey"]).toEqual(appKey);
+        expect(crashData["description"]).toEqual(description);
+        expect(crashData["user"]).toBeTruthy() // Fred has PII obfuscated so the best we can do here is to check if truthy
+        expect(crashData["email"]).toBeTruthy()  // Fred has PII obfuscated so the best we can do here is to check if truthy
     }, 30000);
 
-    it("should post a crash if errorToPost is not an Error object", (done) => {
+    it("should post a crash if errorToPost is not an Error object", async () => {
         const database = "fred";
-        const appName = "myJavaScriptCrasher";
+        const appName = "my-node-crasher";
         const appVersion = "4.3.2.1";
         const errorToPost = "error!";
         const bugsplat = require("../bugsplat")(database, appName, appVersion);
-        const numberOfRequestsToSend = 3;
-        bugsplat.post(errorToPost, {}, function (requestError, responseBody, originalError) {
-            if (requestError) {
-                done(requestError);
-            }
-            const expectedCrashId = responseBody.crash_id;
-            getCrashData(database, expectedCrashId)
-                .then(function (crashData) {
-                    expect(crashData["appName"]).toEqual(appName);
-                    expect(crashData["appVersion"]).toEqual(appVersion);
-                    done();
-                })
-                .catch(err => done(err));
-        });
+
+        const result = await bugsplat.post(errorToPost, {});
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        const expectedCrashId = result.response.crash_id;
+        const crashData = await getCrashData(database, expectedCrashId);
+        expect(crashData["appName"]).toEqual(appName);
+        expect(crashData["appVersion"]).toEqual(appVersion);
     }, 10000);
 
     it("should return error if crash rate limit exceeded", (done) => {
         const database = "fred";
-        const appName = "myJavaScriptCrasher";
+        const appName = "my-node-crasher";
         const appVersion = "1.0.0.0";
-        const error = new Error("dummy");
+        const error = new Error("BugSplat!");
         const bugsplat = require("../bugsplat")(database, appName, appVersion);
         const numberOfRequestsToSend = 10;
 
         for (let i = 0; i < numberOfRequestsToSend; i++) {
-            bugsplat.post(error, {}, function (responseError, responseBody, originalError) {
-                if (responseError) {
-                    expect(responseError.message).toContain("Rate limit of one crash per second exceeded");
-                    expect(responseBody).toBeNull();
+            bugsplat.post(error, {}).then(result => {
+                if (result.error) {
+                    expect(result.error.message).toContain("Rate limit of one crash per second exceeded");
                     done();
                 }
             });
