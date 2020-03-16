@@ -1,15 +1,24 @@
 describe("BugSplat", function () {
 
     const database = "fred";
-    const appName = "myJavaScriptCrasher";
+    const appName = "my-node-crasher";
     const appVersion = "1.0.0.0";
     const expectedStatus = "success";
     const expectedCrashId = 73180;
-    const fakeSuccessReponseBody = "{ \"status\": \"" + expectedStatus + "\", \"crash_id\": " + expectedCrashId + " }";
-
+    
     let bugsplat;
+    let appendSpy;
+    let fakeFormData;
+    let fakeSuccessReponseBody;
 
-    beforeEach(() => bugsplat = require("../bugsplat")(database, appName, appVersion));
+    beforeEach(() => {
+        appendSpy = jasmine.createSpy();
+        fakeFormData = { append: appendSpy, toString: () => "BugSplat rocks!" };
+        fakeSuccessReponseBody = { status: expectedStatus, json: async() => ({crash_id: expectedCrashId}), ok: true }
+        bugsplat = require("../bugsplat")(database, appName, appVersion);
+        bugsplat._fetch = jasmine.createSpy();
+        bugsplat._formData = () => fakeFormData;
+    });
 
     it("should throw exception if user doesn't supply a database", () => {
         try {
@@ -29,163 +38,147 @@ describe("BugSplat", function () {
 
     it("should throw exception if user doesn't supply an appVersion", () => {
         try {
-            require("../bugsplat")("fred", "myJavaScriptCrasher");
+            require("../bugsplat")("fred", "my-node-crasher");
         } catch (err) {
             expect(err.message).toContain("no appVersion was specified!");
         }
     });
 
-    it("should use default appKey if options.appKey is not set", () => {
-        createDefaultPropertyTest(bugsplat, "appKey", "defaultAppKey", bugsplat.setDefaultAppKey);
+    it("should use default appKey if options.appKey is not set", async () => {
+        await createDefaultPropertyTest(bugsplat, "appKey", "defaultAppKey", bugsplat.setDefaultAppKey);
     });
 
-    it("should use options.appKey if set", () => {
+    it("should use options.appKey if set", async () => {
         const appKey = "overridenAppKey";
-        createOptionsOverrideTest(bugsplat, { appKey: appKey }, "appKey", appKey);
+        await createOptionsOverrideTest(bugsplat, { appKey }, "appKey", appKey);
     });
 
-    it("should use default user if options.user is not set", () => {
-        createDefaultPropertyTest(bugsplat, "user", "defaultUser", bugsplat.setDefaultUser);
+    it("should use default user if options.user is not set", async () => {
+        await createDefaultPropertyTest(bugsplat, "user", "defaultUser", bugsplat.setDefaultUser);
     });
 
-    it("should use options.user if set", () => {
+    it("should use options.user if set", async () => {
         const user = "overridenUser";
-        createOptionsOverrideTest(bugsplat, { user: user }, "user", user);
+        await createOptionsOverrideTest(bugsplat, { user }, "user", user);
     });
 
-    it("should use default email if options.email is not set", () => {
-        createDefaultPropertyTest(bugsplat, "email", "defaultEmail", bugsplat.setDefaultEmail);
+    it("should use default email if options.email is not set", async () => {
+        await createDefaultPropertyTest(bugsplat, "email", "defaultEmail", bugsplat.setDefaultEmail);
     });
 
-    it("should use options.email if set", () => {
+    it("should use options.email if set", async () => {
         const email = "overridenEmail";
-        createOptionsOverrideTest(bugsplat, { email: email }, "email", email);
+        await createOptionsOverrideTest(bugsplat, { email }, "email", email);
     });
 
-    it("should use default description if options.description is not set", () => {
-        createDefaultPropertyTest(bugsplat, "description", "defaultDescription", bugsplat.setDefaultDescription);
+    it("should use default description if options.description is not set", async () => {
+        await createDefaultPropertyTest(bugsplat, "description", "defaultDescription", bugsplat.setDefaultDescription);
     });
 
-    it("should use options.description if set", () => {
+    it("should use options.description if set", async () => {
         const description = "overridenDescription";
-        createOptionsOverrideTest(bugsplat, { description: description }, "description", description);
+        await createOptionsOverrideTest(bugsplat, { description }, "description", description);
     });
 
-    it("should append database to post form", () => {
-        createDefaultPropertyTest(bugsplat, "database", database);
+    it("should append database to post body", async () => {
+        await createDefaultPropertyTest(bugsplat, "database", database);
     });
 
-    it("should append appName to post form", () => {
-        createDefaultPropertyTest(bugsplat, "appName", appName);
+    it("should append appName to post body", async () => {
+        await createDefaultPropertyTest(bugsplat, "appName", appName);
     });
 
-    it("should append appVersion to post form", () => {
-        createDefaultPropertyTest(bugsplat, "appVersion", appVersion);
+    it("should append appVersion to post body", async () => {
+        await createDefaultPropertyTest(bugsplat, "appVersion", appVersion);
     });
 
-    it("should append callstack to post form", () => {
+    it("should append callstack to post body", async () => {
         const expectedError = new Error("BugSplat!");
-        const appendSpy = jasmine.createSpy("append").and.stub();
-        const postSpy = spyOn(bugsplat._request, "post")
-            .and.callFake(createFakePostFunction((requestCallback) => requestCallback(null, { statusCode: 200 }, fakeSuccessReponseBody), appendSpy));
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
-        bugsplat.post(expectedError, {}, (requestError, responseBody, originalError) => {});
+        await bugsplat.post(expectedError, {});
+
         expect(appendSpy).toHaveBeenCalledWith("callstack", expectedError.stack);
     });
 
-    it("should log an error if asked to upload a file that doesn't exist", () => {
+    it("should call fetch url containing database", async () => {
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
+
+        await bugsplat.post(new Error("BugSplat!"));
+
+        expect(bugsplat._fetch).toHaveBeenCalledWith(`https://${database}.bugsplat.com/post/js/`, jasmine.anything());
+    });
+
+    it("should call fetch with method and body", async () => {
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
+
+        await bugsplat.post(new Error("BugSplat!"));
+
+        expect(bugsplat._fetch).toHaveBeenCalledWith(jasmine.anything(), jasmine.objectContaining({
+            method: "POST",
+            body: fakeFormData
+        }));
+    });
+
+    it("should log an error if asked to upload a file that doesn't exist", async () => {
         const dummyFileName = "foobar.txt";
         const consoleSpy = spyOn(console, "error");
-        const postSpy = spyOn(bugsplat._request, "post")
-            .and.callFake(createFakePostFunction((requestCallback) => requestCallback(null, { statusCode: 200 }, fakeSuccessReponseBody)))
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
-        bugsplat.addAdditionalFile(dummyFileName);
-        bugsplat.post(new Error("dummy"));
+        bugsplat.setDefaultAdditionalFilePaths([dummyFileName]);
+        await bugsplat.post(new Error("BugSplat!"));
 
         expect(consoleSpy).toHaveBeenCalledWith("BugSplat file doesn't exist at path:", dummyFileName);
     });
 
-    it("should log an error if asked to upload a file greater than 1 MB", () => {
+    it("should log an error if asked to upload a file greater than 1 MB", async () => {
         const largeFileName = "./spec/files/1mbplus.txt";
         const additionalFileName = "./spec/files/additionalFile.txt";
         const consoleSpy = spyOn(console, "error");
-        const postSpy = spyOn(bugsplat._request, "post")
-            .and.callFake(createFakePostFunction((requestCallback) => requestCallback(null, { statusCode: 200 }, fakeSuccessReponseBody)));
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
-        bugsplat.addAdditionalFile(additionalFileName);
-        bugsplat.addAdditionalFile(largeFileName);
-        bugsplat.addAdditionalFile(additionalFileName);
-        bugsplat.post(new Error("dummy"));
+        bugsplat.setDefaultAdditionalFilePaths([additionalFileName, largeFileName, additionalFileName]);
+        await bugsplat.post(new Error("BugSplat!"));
 
         const expectedMessage = "BugSplat upload limit of 1MB exceeded, skipping file:";
         expect(consoleSpy).toHaveBeenCalledWith(expectedMessage, largeFileName);
         expect(consoleSpy).not.toHaveBeenCalledWith(expectedMessage, additionalFileName)
     });
 
-    it("should call the callback function", (done) => {
-        const postSpy = spyOn(bugsplat._request, "post")
-            .and.callFake(createFakePostFunction((requestCallback) => requestCallback(null, { statusCode: 200 }, fakeSuccessReponseBody)));
+    it("should return response body and original error if BugSplat POST returns 200", async () => {
+        const errorToPost = new Error("BugSplat!")
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
-        bugsplat.post(new Error("dummy"), {}, (requestError, responseBody, originalError) => done());
+        const result = await bugsplat.post(errorToPost, {});
+
+        expect(result.error).toBeFalsy();
+        expect(result.response.crash_id).toEqual(expectedCrashId);
+        expect(result.original.message).toEqual(errorToPost.message);
     });
 
-    it("should pass originalError to callback if post is successful", (done) => {
-        const errorToPost = new Error("foobar!");
-        const postSpy = spyOn(bugsplat._request, "post")
-            .and.callFake(createFakePostFunction((requestCallback) => requestCallback(null, { statusCode: 200 }, fakeSuccessReponseBody)));
+    it("should return BugSplat error, response body and original error if BugSplat POST returns 400", async () => {
+        const errorToPost = new Error("BugSplat!")
+        bugsplat._fetch.and.returnValue({ status: 400, json: async () => ({}) });
 
-        bugsplat.post(errorToPost, {}, function (requestError, responseBody, originalError) {
-            expect(responseBody.status).toEqual(expectedStatus);
-            expect(responseBody.crash_id).toEqual(expectedCrashId);
-            expect(originalError.message).toEqual(errorToPost.message);
-            done();
-        });
+        const result = await bugsplat.post(errorToPost, {});
+        expect(result.error.message).toEqual("BugSplat Error: Bad request");
+        expect(result.original.message).toEqual(errorToPost.message);
     });
 
-    it("should pass originalError to callback if post returns a request error", (done) => {
-        const expectedRequestError = new Error("couldn't establish a connection");
-        const errorToPost = new Error("foobar!");
-        const postSpy = spyOn(bugsplat._request, "post")
-            .and.callFake(createFakePostFunction((requestCallback) => requestCallback(expectedRequestError, null, null)));
-
-        bugsplat.post(errorToPost, {}, function (requestError, responseBody, originalError) {
-            expect(requestError.message).toEqual(expectedRequestError.message);
-            expect(originalError.message).toEqual(errorToPost.message);
-            done();
-        });
-    });
-
-    function createDefaultPropertyTest(bugsplat, propertyName, propertyValue, propertySetter = (value) => {}) {
-        const appendSpy = jasmine.createSpy("append").and.stub();
-        const postSpy = spyOn(bugsplat._request, "post")
-            .and.callFake(createFakePostFunction((requestCallback) => requestCallback(null, { statusCode: 200 }, fakeSuccessReponseBody), appendSpy));
+    async function createDefaultPropertyTest(bugsplat, propertyName, propertyValue, propertySetter = (value) => {}) {
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
         propertySetter(propertyValue);
-        bugsplat.post(new Error("foobar!"), {}, (requestError, responseBody, originalError) => { });
+        await bugsplat.post(new Error("BugSplat!"), {});
 
         expect(appendSpy).toHaveBeenCalledWith(propertyName, propertyValue);
     }
 
-    function createOptionsOverrideTest(bugsplat, postOptions, propertyName, propertyValue) {
-        const appendSpy = jasmine.createSpy("append").and.stub();
-        const postSpy = spyOn(bugsplat._request, "post")
-            .and.callFake(createFakePostFunction((requestCallback) => requestCallback(null, { statusCode: 200 }, fakeSuccessReponseBody), appendSpy));
+    async function createOptionsOverrideTest(bugsplat, postOptions, propertyName, propertyValue) {     
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
-        bugsplat.post(new Error("foobar!"), postOptions, (requestError, responseBody, originalError) => { });
+        await bugsplat.post(new Error("BugSplat!"), postOptions);
 
         expect(appendSpy).toHaveBeenCalledWith(propertyName, propertyValue);
-    }
-
-    function createFakePostFunction(invokeCallback, appendSpy) {
-        return function (options, requestCallback) {
-            invokeCallback(requestCallback);
-            return {
-                form: function () {
-                    return {
-                        append: appendSpy || function (key, value) { },
-                    };
-                }
-            };
-        }
     }
 });
