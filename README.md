@@ -11,9 +11,13 @@ To add the bugsplat package to your application, run the following shell command
 ```shell
 npm install --save bugsplat
 ```
-Require the bugsplat module at the entry point of your application. Provide the name of your BugSplat database, the name of your application and the version of your application:
+Require the bugsplat module at the entry point of your application. 
+```js
+const BugSplat = require("bugsplat");
+```
+Create a new instance of the BugSplat class with the name of your BugSplat database, the name of your application and the version of your application:
  ```js
- const bugsplat = require("bugsplat")("DatabaseName", "AppName", "1.0.0.0");
+ const bugsplat = new BugSplat("DatabaseName", "AppName", "1.0.0.0");
  ```
 Set the bugsplat.post function as an event handler for uncaught exceptions:
 ```js
