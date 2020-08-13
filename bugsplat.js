@@ -58,7 +58,7 @@ module.exports = function (database, appName, appVersion) {
         const url = "https://" + database + ".bugsplat.com/post/js/";
         const callstack = !errorToPost.stack ? errorToPost : errorToPost.stack;
         const method = "POST";
-        const body = _formData();
+        const body = this._formData();
         body.append("database", database);
         body.append("appName", appName);
         body.append("appVersion", appVersion);
@@ -72,7 +72,7 @@ module.exports = function (database, appName, appVersion) {
         console.log("BugSplat Error:", errorToPost);
         console.log("BugSplat Url:", url);
 
-        const response = await _fetch(url, { method, body });
+        const response = await this._fetch(url, { method, body });
         const json = await tryParseResponseJson(response);
 
         console.log("BugSplat POST status code:", response.status);
