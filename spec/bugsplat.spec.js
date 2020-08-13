@@ -1,3 +1,5 @@
+const BugSplat = require("../bugsplat");
+
 describe("BugSplat", function () {
 
     const database = "fred";
@@ -15,14 +17,14 @@ describe("BugSplat", function () {
         appendSpy = jasmine.createSpy();
         fakeFormData = { append: appendSpy, toString: () => "BugSplat rocks!" };
         fakeSuccessReponseBody = { status: expectedStatus, json: async() => ({crash_id: expectedCrashId}), ok: true }
-        bugsplat = require("../bugsplat")(database, appName, appVersion);
+        bugsplat = new BugSplat(database, appName, appVersion);
         bugsplat._fetch = jasmine.createSpy();
         bugsplat._formData = () => fakeFormData;
     });
 
     it("should throw exception if user doesn't supply a database", () => {
         try {
-            require("../bugsplat")();
+            new BugSplat();
         } catch (err) {
             expect(err.message).toContain("no database was specified!");
         }
@@ -30,7 +32,7 @@ describe("BugSplat", function () {
 
     it("should throw exception if user doesn't supply an appName", () => {
         try {
-            require("../bugsplat")("fred");
+            new BugSplat("fred");
         } catch (err) {
             expect(err.message).toContain("no appName was specified!");
         }
@@ -38,7 +40,7 @@ describe("BugSplat", function () {
 
     it("should throw exception if user doesn't supply an appVersion", () => {
         try {
-            require("../bugsplat")("fred", "my-node-crasher");
+            new BugSplat("fred", "my-node-crasher");
         } catch (err) {
             expect(err.message).toContain("no appVersion was specified!");
         }

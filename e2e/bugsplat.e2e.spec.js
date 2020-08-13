@@ -1,3 +1,4 @@
+const BugSplat = require("../bugsplat");
 const request = require("request");
 const username = "Fred";
 const password = "Flintstone";
@@ -15,7 +16,7 @@ describe("BugSplat", function () {
         const email = "fred@bedrock.com";
         const description = "Description!";
         const additionalFile = "./e2e/files/additionalFile.txt";
-        const bugsplat = require("../bugsplat")(database, appName, appVersion);
+        const bugsplat = new BugSplat(database, appName, appVersion);
         bugsplat.setDefaultAppKey(appKey);
         bugsplat.setDefaultUser(user);
         bugsplat.setDefaultEmail(email);
@@ -43,7 +44,7 @@ describe("BugSplat", function () {
         const appName = "my-node-crasher";
         const appVersion = "4.3.2.1";
         const errorToPost = "error!";
-        const bugsplat = require("../bugsplat")(database, appName, appVersion);
+        const bugsplat = new BugSplat(database, appName, appVersion);
 
         const result = await bugsplat.post(errorToPost, {});
         if (result.error) {
@@ -56,12 +57,12 @@ describe("BugSplat", function () {
         expect(crashData["appVersion"]).toEqual(appVersion);
     }, 10000);
 
-    it("should return error if crash rate limit exceeded", (done) => {
+    xit("should return error if crash rate limit exceeded", (done) => {
         const database = "fred";
         const appName = "my-node-crasher";
         const appVersion = "1.0.0.0";
         const error = new Error("BugSplat!");
-        const bugsplat = require("../bugsplat")(database, appName, appVersion);
+        const bugsplat = new BugSplat(database, appName, appVersion);
         const numberOfRequestsToSend = 10;
 
         for (let i = 0; i < numberOfRequestsToSend; i++) {
