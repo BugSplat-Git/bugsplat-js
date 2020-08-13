@@ -3,8 +3,9 @@ const formData = require("form-data");
 const fs = require("fs");
 const path = require("path");
 
-module.exports = function (database, appName, appVersion) {
 
+
+module.exports = function (database, appName, appVersion) {
     if (!database || database === "") {
         throw new Error("BugSplat error: no database was specified!");
     }
@@ -17,43 +18,46 @@ module.exports = function (database, appName, appVersion) {
         throw new Error("BugSplat error: no appVersion was specified!");
     }
 
-    let _defaultUser = "";
-    let _defaultEmail = "";
-    let _defaultDescription = "";
-    let _defaultAppKey = "";
-    let _defaultAdditionalFilePaths = [];
+    this._database = database;
+    this._appName = appName;
+    this._appVersion = appVersion;
 
-    this._fetch = fetch;
+    this._additionalFilePaths = [];
+    this._appKey = '';
+    this._description = '';
+    this._email = '';
+    this._user = '';
     this._formData = formData;
+    this._fetch = fetch;
 
-    this.setDefaultAppKey = function (appKey) {
-        _defaultAppKey = appKey;
-    };
+    this.setDefaultAdditionalFilePaths = (additionalFilePaths) => {
+        this._additionalFilePaths = additionalFilePaths;
+    }
 
-    this.setDefaultUser = function (user) {
-        _defaultUser = user;
-    };
+    this.setDefaultAppKey = (appKey) => {
+        this._appKey = appKey;
+    }
 
-    this.setDefaultEmail = function (email) {
-        _defaultEmail = email;
-    };
+    this.setDefaultDescription = (description) => {
+        this._description = description;
+    }
 
-    this.setDefaultDescription = function (description) {
-        _defaultDescription = description;
-    };
+    this.setDefaultEmail = (email) => {
+        this._email = email;
+    }
 
-    this.setDefaultAdditionalFilePaths = function (paths) {
-        _defaultAdditionalFilePaths = paths;
-    };
+    this.setDefaultUser = (user) => {
+        this._user = user;
+    }
 
-    this.post = async function (errorToPost, options) {
+    this.post = async (errorToPost, options) => {
         options = options || {};
 
-        const appKey = options.appKey || _defaultAppKey;
-        const user = options.user || _defaultUser;
-        const email = options.email || _defaultEmail;
-        const description = options.description || _defaultDescription;
-        const additionalFilePaths = options.additionalFilePaths || _defaultAdditionalFilePaths;
+        const appKey = options.appKey || this._appKey;
+        const user = options.user || this._user;
+        const email = options.email || this._email;
+        const description = options.description || this._description;
+        const additionalFilePaths = options.additionalFilePaths || this._additionalFilePaths;
 
         const url = "https://" + database + ".bugsplat.com/post/js/";
         const callstack = !errorToPost.stack ? errorToPost : errorToPost.stack;
@@ -67,74 +71,72 @@ module.exports = function (database, appName, appVersion) {
         body.append("email", email);
         body.append("description", description);
         body.append("callstack", callstack);
-        addAdditionalFilesToBody(body, additionalFilePaths);
+        this._addAdditionalFilesToBody(body, additionalFilePaths);
 
         console.log("BugSplat Error:", errorToPost);
         console.log("BugSplat Url:", url);
 
         const response = await this._fetch(url, { method, body });
-        const json = await tryParseResponseJson(response);
+        const json = await this._tryParseResponseJson(response);
 
         console.log("BugSplat POST status code:", response.status);
         console.log("BugSplat POST response body:", json);
 
         if (response.status === 400) {
-            return createReturnValue(new Error("BugSplat Error: Bad request"), json, errorToPost);
+            return this._createReturnValue(new Error("BugSplat Error: Bad request"), json, errorToPost);
         }
 
         if (response.status === 429) {
-            return createReturnValue(new Error("BugSplat Error: Rate limit of one crash per second exceeded"), json, errorToPost);
+            return this._createReturnValue(new Error("BugSplat Error: Rate limit of one crash per second exceeded"), json, errorToPost);
         }
 
         if (!response.ok) {
-            return createReturnValue(new Error("BugSplat Error: Unknown error"), json, errorToPost);
+            return this._createReturnValue(new Error("BugSplat Error: Unknown error"), json, errorToPost);
         }
 
-        return createReturnValue(null, json, errorToPost);
+        return this._createReturnValue(null, json, errorToPost);
     }
 
-    this.postAndExit = async function (errorToPost, options) {
+    this.postAndExit = async (errorToPost, options) => {
         return this.post(errorToPost, options).then(() => process.exit(1));
     }
 
-    return this;
-};
-
-function addAdditionalFilesToBody(body, additionalFilePaths) {
-    let totalZipSize = 0;
-    for (var i = 0; i < additionalFilePaths.length; i++) {
-        const filePath = additionalFilePaths[i];
-        if (fs.existsSync(filePath)) {
-            const fileSize = fs.statSync(filePath).size;
-            totalZipSize = totalZipSize + fileSize;
-            if (totalZipSize <= 1048576) {
-                const fileName = path.basename(filePath);
-                const fileContents = fs.createReadStream(filePath);
-                body.append(fileName, fileContents);
+    this._addAdditionalFilesToBody = (body, additionalFilePaths) => {
+        let totalZipSize = 0;
+        for (var i = 0; i < additionalFilePaths.length; i++) {
+            const filePath = additionalFilePaths[i];
+            if (fs.existsSync(filePath)) {
+                const fileSize = fs.statSync(filePath).size;
+                totalZipSize = totalZipSize + fileSize;
+                if (totalZipSize <= 1048576) {
+                    const fileName = path.basename(filePath);
+                    const fileContents = fs.createReadStream(filePath);
+                    body.append(fileName, fileContents);
+                } else {
+                    console.error("BugSplat upload limit of 1MB exceeded, skipping file:", filePath);
+                    totalZipSize = totalZipSize - fileSize;
+                }
             } else {
-                console.error("BugSplat upload limit of 1MB exceeded, skipping file:", filePath);
-                totalZipSize = totalZipSize - fileSize;
+                console.error("BugSplat file doesn't exist at path:", filePath);
             }
-        } else {
-            console.error("BugSplat file doesn't exist at path:", filePath);
         }
     }
-}
 
-async function tryParseResponseJson(response) {
-    let parsed;
-    try {
-        parsed = await response.json();
-    } catch(_) {
-        parsed = {};
+    this._createReturnValue = (error, response, original) => {
+        return {
+            error,
+            response,
+            original
+        };
     }
-    return parsed;
-}
 
-function createReturnValue(error, response, original) {
-    return {
-        error,
-        response,
-        original
-    };
-}
+    this._tryParseResponseJson = async (response) => {
+        let parsed;
+        try {
+            parsed = await response.json();
+        } catch (_) {
+            parsed = {};
+        }
+        return parsed;
+    }
+};

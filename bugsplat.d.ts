@@ -1,3 +1,9 @@
+export = BugSplat;
+
+declare module "bugsplat" {
+    export = BugSplat;
+}
+
 declare class BugSplat {
     constructor(database: string, appName: string, appVersion: string);
     setDefaultAdditionalFilePaths(additionalFilePaths: Array<string>): void;
@@ -5,8 +11,8 @@ declare class BugSplat {
     setDefaultDescription(description: string): void;
     setDefaultEmail(email: string): void;
     setDefaultUser(user: string): void;
-    async post(errorToPost: Error, options?: BugSplatOptions): Promise<BugSplatResponse>;
-    async postAndExit(errorToPost: Error, options?: BugSplatOptions): Promise<void>;
+    post(errorToPost: Error, options?: BugSplatOptions): Promise<BugSplatResponse>;
+    postAndExit(errorToPost: Error, options?: BugSplatOptions): Promise<void>;
 }
 
 interface BugSplatOptions {
