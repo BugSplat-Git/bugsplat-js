@@ -1,6 +1,6 @@
-const fetch = globalThis.fetch ? globalThis.fetch : require("node-fetch");
-const formData = globalThis.FormData ? globalThis.FormData : require("form-data");
 
+const fetch = globalThis.fetch ? globalThis.fetch.bind() : require("node-fetch");
+const FormData = globalThis.FormData ? globalThis.FormData : require("form-data");
 
 module.exports = function (database, appName, appVersion) {
     if (!database || database === "") {
@@ -18,14 +18,14 @@ module.exports = function (database, appName, appVersion) {
     this._database = database;
     this._appName = appName;
     this._appVersion = appVersion;
+    this._formData = () => new FormData();
+    this._fetch = fetch;
 
     this._additionalFormDataParams = [];
     this._appKey = '';
     this._description = '';
     this._email = '';
     this._user = '';
-    this._formData = formData;
-    this._fetch = fetch;
 
     this.setDefaultAppKey = (appKey) => {
         this._appKey = appKey;
@@ -65,8 +65,6 @@ module.exports = function (database, appName, appVersion) {
         body.append("description", description);
         body.append("callstack", callstack);
         additionalFormDataParams.forEach(param => body.append(param.key, param.value));
-        // TODO move to bugsplat-node
-        //this._addAdditionalFilesToBody(body, additionalFilePaths);
 
         console.log("BugSplat Error:", errorToPost);
         console.log("BugSplat Url:", url);
