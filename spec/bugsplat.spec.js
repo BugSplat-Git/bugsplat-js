@@ -46,6 +46,17 @@ describe("BugSplat", function () {
         }
     });
 
+    it("should call append with options.additionalFormDataParams if set", async () => {
+        const key = "attachment.txt";
+        const value = "🐶";
+        const additionalFormDataParams = [{key, value}];
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
+
+        await bugsplat.post(new Error("BugSplat!"), { additionalFormDataParams });
+
+        expect(appendSpy).toHaveBeenCalledWith(key, value);
+    });
+
     it("should use default appKey if options.appKey is not set", async () => {
         await createDefaultPropertyTest(bugsplat, "appKey", "defaultAppKey", bugsplat.setDefaultAppKey);
     });
@@ -120,31 +131,6 @@ describe("BugSplat", function () {
             method: "POST",
             body: fakeFormData
         }));
-    });
-
-    it("should log an error if asked to upload a file that doesn't exist", async () => {
-        const dummyFileName = "foobar.txt";
-        const consoleSpy = spyOn(console, "error");
-        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
-
-        bugsplat.setDefaultAdditionalFilePaths([dummyFileName]);
-        await bugsplat.post(new Error("BugSplat!"));
-
-        expect(consoleSpy).toHaveBeenCalledWith("BugSplat file doesn't exist at path:", dummyFileName);
-    });
-
-    it("should log an error if asked to upload a file greater than 1 MB", async () => {
-        const largeFileName = "./spec/files/1mbplus.txt";
-        const additionalFileName = "./spec/files/additionalFile.txt";
-        const consoleSpy = spyOn(console, "error");
-        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
-
-        bugsplat.setDefaultAdditionalFilePaths([additionalFileName, largeFileName, additionalFileName]);
-        await bugsplat.post(new Error("BugSplat!"));
-
-        const expectedMessage = "BugSplat upload limit of 1MB exceeded, skipping file:";
-        expect(consoleSpy).toHaveBeenCalledWith(expectedMessage, largeFileName);
-        expect(consoleSpy).not.toHaveBeenCalledWith(expectedMessage, additionalFileName)
     });
 
     it("should return response body and original error if BugSplat POST returns 200", async () => {

@@ -1,5 +1,7 @@
 const BugSplat = require("../bugsplat");
 const request = require("request");
+const fs = require("fs");
+const path = require("path");
 const username = "Fred";
 const password = "Flintstone";
 const appBaseUrl = "https://app.bugsplat.com";
@@ -16,13 +18,15 @@ describe("BugSplat", function () {
         const email = "fred@bedrock.com";
         const description = "Description!";
         const additionalFile = "./e2e/files/additionalFile.txt";
+        const fileName = path.basename(additionalFile);
+        const fileContents = fs.createReadStream(additionalFile);
+        const additionalFormDataParams = [{ key: fileName, value: fileContents }];
         const bugsplat = new BugSplat(database, appName, appVersion);
         bugsplat.setDefaultAppKey(appKey);
         bugsplat.setDefaultUser(user);
         bugsplat.setDefaultEmail(email);
         bugsplat.setDefaultDescription(description);
-        bugsplat.setDefaultAdditionalFilePaths([additionalFile]);
-        const result = await bugsplat.post(error, {});
+        const result = await bugsplat.post(error, { additionalFormDataParams });
         
         if (result.error) {
             throw new Error(result.error);

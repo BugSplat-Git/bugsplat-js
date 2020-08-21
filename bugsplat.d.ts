@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 export = BugSplat;
 
 declare module "bugsplat" {
@@ -6,7 +8,6 @@ declare module "bugsplat" {
 
 declare class BugSplat {
     constructor(database: string, appName: string, appVersion: string);
-    setDefaultAdditionalFilePaths(additionalFilePaths: Array<string>): void;
     setDefaultAppKey(appKey: string): void;
     setDefaultDescription(description: string): void;
     setDefaultEmail(email: string): void;
@@ -15,8 +16,13 @@ declare class BugSplat {
     postAndExit(errorToPost: Error, options?: BugSplatOptions): Promise<void>;
 }
 
+interface FormDataParam {
+    key: string;
+    value: string | node.ReadStream;
+}
+
 interface BugSplatOptions {
-    additionalFilePaths?: Array<string>;
+    additionalFormDataParams?: Array<FormDataParam>;
     appKey?: string;
     description?:  string;
     email?: string;
