@@ -1,7 +1,5 @@
 import { BugSplatOptions } from "./bugsplat-options";
 import { BugSplatResponse } from "./bugsplat-response";
-
-// const fetch = globalThis.fetch ? globalThis.fetch.bind() : require("node-fetch");
 const FormData = globalThis.FormData ? globalThis.FormData : require("form-data");
 
 export class BugSplat {
