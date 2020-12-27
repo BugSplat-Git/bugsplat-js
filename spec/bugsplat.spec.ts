@@ -18,15 +18,15 @@ describe("BugSplat", function () {
         fakeFormData = { append: appendSpy, toString: () => "BugSplat rocks!" };
         fakeSuccessReponseBody = { status: expectedStatus, json: async() => ({crash_id: expectedCrashId}), ok: true }
         bugsplat = new BugSplat(database, appName, appVersion);
-        bugsplat.fetch = jasmine.createSpy();
-        bugsplat.formData = () => fakeFormData;
+        bugsplat._fetch = jasmine.createSpy();
+        bugsplat._formData = () => fakeFormData;
     });
 
     it("should call append with options.additionalFormDataParams if set", async () => {
         const key = "attachment.txt";
         const value = "🐶";
         const additionalFormDataParams = [{key, value}];
-        bugsplat.fetch.and.returnValue(fakeSuccessReponseBody);
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
         await bugsplat.post(new Error("BugSplat!"), { additionalFormDataParams });
 
@@ -83,7 +83,7 @@ describe("BugSplat", function () {
 
     it("should append callstack to post body", async () => {
         const expectedError = new Error("BugSplat!");
-        bugsplat.fetch.and.returnValue(fakeSuccessReponseBody);
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
         await bugsplat.post(expectedError, {});
 
@@ -91,19 +91,19 @@ describe("BugSplat", function () {
     });
 
     it("should call fetch url containing database", async () => {
-        bugsplat.fetch.and.returnValue(fakeSuccessReponseBody);
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
         await bugsplat.post(new Error("BugSplat!"));
 
-        expect(bugsplat.fetch).toHaveBeenCalledWith(`https://${database}.bugsplat.com/post/js/`, jasmine.anything());
+        expect(bugsplat._fetch).toHaveBeenCalledWith(`https://${database}.bugsplat.com/post/js/`, jasmine.anything());
     });
 
     it("should call fetch with method and body", async () => {
-        bugsplat.fetch.and.returnValue(fakeSuccessReponseBody);
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
         await bugsplat.post(new Error("BugSplat!"));
 
-        expect(bugsplat.fetch).toHaveBeenCalledWith(jasmine.anything(), jasmine.objectContaining({
+        expect(bugsplat._fetch).toHaveBeenCalledWith(jasmine.anything(), jasmine.objectContaining({
             method: "POST",
             body: fakeFormData
         }));
@@ -111,7 +111,7 @@ describe("BugSplat", function () {
 
     it("should return response body and original error if BugSplat POST returns 200", async () => {
         const errorToPost = new Error("BugSplat!")
-        bugsplat.fetch.and.returnValue(fakeSuccessReponseBody);
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
         const result = await bugsplat.post(errorToPost, {});
 
@@ -122,7 +122,7 @@ describe("BugSplat", function () {
 
     it("should return BugSplat error, response body and original error if BugSplat POST returns 400", async () => {
         const errorToPost = new Error("BugSplat!")
-        bugsplat.fetch.and.returnValue({ status: 400, json: async () => ({}) });
+        bugsplat._fetch.and.returnValue({ status: 400, json: async () => ({}) });
 
         const result = await bugsplat.post(errorToPost, {});
         expect(result.error.message).toEqual("BugSplat Error: Bad request");
@@ -131,7 +131,7 @@ describe("BugSplat", function () {
 
     it("should return BugSplat error, response body and original error if BugSplat POST returns 429", async () => {
         const errorToPost = new Error("BugSplat!")
-        bugsplat.fetch.and.returnValue({ status: 429, json: async () => ({}) });
+        bugsplat._fetch.and.returnValue({ status: 429, json: async () => ({}) });
 
         const result = await bugsplat.post(errorToPost, {});
         expect(result.error.message).toEqual("BugSplat Error: Rate limit of one crash per second exceeded");
@@ -140,7 +140,7 @@ describe("BugSplat", function () {
 
     it("should return BugSplat error, response body and original error for unknown BugSplat POST error", async () => {
         const errorToPost = new Error("BugSplat!")
-        bugsplat.fetch.and.returnValue({ status: 500, json: async () => ({}), ok: false });
+        bugsplat._fetch.and.returnValue({ status: 500, json: async () => ({}), ok: false });
 
         const result = await bugsplat.post(errorToPost, {});
         expect(result.error.message).toEqual("BugSplat Error: Unknown error");
@@ -148,7 +148,7 @@ describe("BugSplat", function () {
     });
 
     async function createDefaultPropertyTest(bugsplat, propertyName, propertyValue, propertySetter = (value) => {}) {
-        bugsplat.fetch.and.returnValue(fakeSuccessReponseBody);
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
         propertySetter(propertyValue);
         await bugsplat.post(new Error("BugSplat!"), {});
@@ -157,7 +157,7 @@ describe("BugSplat", function () {
     }
 
     async function createOptionsOverrideTest(bugsplat, postOptions, propertyName, propertyValue) {     
-        bugsplat.fetch.and.returnValue(fakeSuccessReponseBody);
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
         await bugsplat.post(new Error("BugSplat!"), postOptions);
 

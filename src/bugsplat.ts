@@ -5,8 +5,8 @@ import FormData from 'form-data';
 
 export class BugSplat {
 
-    fetch = fetchPonyfill().fetch;
-    formData = () => new FormData();
+    private _fetch = fetchPonyfill().fetch;
+    private _formData = () => new FormData();
 
     private _appKey: string = '';
     private _description: string = '';
@@ -27,7 +27,7 @@ export class BugSplat {
         const url = "https://" + this._database + ".bugsplat.com/post/js/";
         const callstack = !errorToPost.stack ? `${errorToPost}` : errorToPost.stack;
         const method = "POST";
-        const body = <any>this.formData();
+        const body = <any>this._formData();
         body.append("database", this._database);
         body.append("appName", this._appName);
         body.append("appVersion", this._appVersion);
@@ -41,7 +41,7 @@ export class BugSplat {
         console.log("BugSplat Error:", errorToPost);
         console.log("BugSplat Url:", url);
 
-        const response = await this.fetch(url, { method, body });
+        const response = await this._fetch(url, { method, body });
         const json = await this._tryParseResponseJson(response);
 
         console.log("BugSplat POST status code:", response.status);
