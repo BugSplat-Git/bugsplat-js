@@ -12,15 +12,21 @@ To add the bugsplat package to your application, run the following shell command
 npm install --save bugsplat
 ```
 
-Require the bugsplat module at the entry point of your application. 
+Depending on your project's module system you can either `import` or `require` BugSplat:
+### ESM
 ```js
-const BugSplat = require("bugsplat");
+import BugSplat from 'bugsplat';
+```
+
+### CommonJS
+```
+const BugSplat = require('bugsplat');
 ```
 
 Create a new instance of the BugSplat class with the name of your BugSplat database, the name of your application and the version of your application:
- ```js
- const bugsplat = new BugSplat("DatabaseName", "AppName", "1.0.0.0");
- ```
+```js
+const bugsplat = new BugSplat("DatabaseName", "AppName", "1.0.0.0");
+```
 
 Listen for window.onerror events and post them to BugSplat:
 ```js
@@ -70,14 +76,15 @@ bugsplat.setDefaultAppKey(appKey); // Additional metadata that can be queried vi
 bugsplat.setDefaultUser(user); // The name or id of your user
 bugsplat.setDefaultEmail(email); // The email of your user
 bugsplat.setDefaultDescription(description); // Additional info about your crash that gets reset after every post
-bugsplat.post(error, options); // Posts an arbitrary Error object to BugSplat
+async bugsplat.post(error, options); // Posts an arbitrary Error object to BugSplat
 // If the values options.appKey, options.user, options.email, options.description are set the corresponding default values will be overwritten
 // Returns a promise that resolves with properties: error (if there was an error posting to BugSplat), response (the response from the BugSplat crash post API), and original (the error passed by bugsplat.post)
 ```
 
 ## Upgrading
 
-If you are developing a Node.js application and were using bugsplat-js <= 5.0.0 please upgrade to [bugsplat-node](https://www.npmjs.com/package/bugsplat-node).  BugSplat-node has the same consumer APIs as bugsplat-js <= 5.0.0. Additionally, support for file attachments and exiting the Node process in the error handler have been moved to [bugsplat-node](https://www.npmjs.com/package/bugsplat-node) so that bugsplat-js can be run in browsers as well as Node.js environments.
+If you are developing a Node.js application and were using bugsplat-js <= 5.0.0 please upgrade to [bugsplat-node](https://www.npmjs.com/package/bugsplat-node). BugSplat-node has the same consumer APIs as bugsplat-js <= 5.0.0. Additionally, support for file attachments and exiting the Node process in the error handler have been moved to [bugsplat-node](https://www.npmjs.com/package/bugsplat-node) so that bugsplat-js can be run in browsers as well as Node.js environments.
 
 ## Contributing
+
 BugSplat loves open source software! Please check out our project on [GitHub](https://github.com/BugSplat-Git/bugsplat-js) and send us a Pull Request.
