@@ -1,4 +1,4 @@
-import { BugSplat } from '../index';
+import { BugSplat } from '../src/bugsplat';
 
 describe("BugSplat", function () {
 

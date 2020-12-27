@@ -4,10 +4,11 @@
   "description": "error reporting for js",
   "main": "index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "test": "ts-node --project spec/tsconfig.spec.json node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.json",
     "e2e": "ts-node --project spec/tsconfig.spec.json node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.e2e.json",
-    "dist": "npm run build && cp {package.json,README.md,LICENSE} ./dist",
+    "dist": "rm -rf ./dist && npm run build && cp {package.json,README.md,LICENSE} ./dist",
     "build": "tsc -p tsconfig.json"
   },
   "keywords": [
@@ -29,8 +30,8 @@
   "author": "@bobbyg603",
   "license": "MIT",
   "dependencies": {
-    "form-data": "^3.0.0",
-    "node-fetch": "^2.6.0"
+    "fetch-ponyfill": "^7.0.0",
+    "form-data": "^3.0.0"
   },
   "devDependencies": {
     "@types/jasmine": "^3.6.2",

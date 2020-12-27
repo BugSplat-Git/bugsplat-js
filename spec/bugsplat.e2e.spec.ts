@@ -1,4 +1,4 @@
-import { BugSplat } from '../index';
+import { BugSplat } from '../src/bugsplat';
 import * as fetch from 'node-fetch';
 import * as fs from 'fs';
 import * as path from 'path';

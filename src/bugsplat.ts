@@ -1,10 +1,11 @@
+import fetchPonyfill from "fetch-ponyfill";
 import { BugSplatOptions } from "./bugsplat-options";
 import { BugSplatResponse } from "./bugsplat-response";
-const FormData = globalThis.FormData ? globalThis.FormData : require("form-data");
+import FormData from 'form-data';
 
 export class BugSplat {
 
-    fetch = globalThis.fetch ? globalThis.fetch.bind(globalThis) : require("node-fetch");
+    fetch = fetchPonyfill().fetch;
     formData = () => new FormData();
 
     private _appKey: string = '';
@@ -24,9 +25,9 @@ export class BugSplat {
         const additionalFormDataParams = options.additionalFormDataParams || [];
 
         const url = "https://" + this._database + ".bugsplat.com/post/js/";
-        const callstack = !errorToPost.stack ? errorToPost : errorToPost.stack;
+        const callstack = !errorToPost.stack ? `${errorToPost}` : errorToPost.stack;
         const method = "POST";
-        const body = this.formData();
+        const body = <any>this.formData();
         body.append("database", this._database);
         body.append("appName", this._appName);
         body.append("appVersion", this._appVersion);
