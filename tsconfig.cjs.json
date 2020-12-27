@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        "module": "commonjs",
+        "lib": [
+            "es5",
+            "es2015",
+            "DOM"
+        ],
+        "moduleResolution": "Node",
+        "outDir": "./dist/cjs",
+        "declaration": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "removeComments": true,
+        "strict": true,
+    },
+    "files": [
+        "./index.ts"
+    ]
+}

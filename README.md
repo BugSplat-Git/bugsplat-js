@@ -15,12 +15,12 @@ npm install --save bugsplat
 Depending on your project's module system you can either `import` or `require` BugSplat:
 ### ESM
 ```js
-import BugSplat from 'bugsplat';
+import { BugSplat } from 'bugsplat';
 ```
 
 ### CommonJS
 ```
-const BugSplat = require('bugsplat');
+const { BugSplat } = require('bugsplat');
 ```
 
 Create a new instance of the BugSplat class with the name of your BugSplat database, the name of your application and the version of your application:
