@@ -4,7 +4,7 @@ const FormData = globalThis.FormData ? globalThis.FormData : require("form-data"
 
 export class BugSplat {
 
-    fetch = globalThis.fetch ? globalThis.fetch.bind(this) : require("node-fetch");
+    fetch = globalThis.fetch ? globalThis.fetch.bind(globalThis) : require("node-fetch");
     formData = () => new FormData();
 
     private _appKey: string = '';
