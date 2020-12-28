@@ -1,4 +1,4 @@
-const BugSplat = require("../bugsplat");
+import { BugSplat } from '../src/bugsplat';
 
 describe("BugSplat", function () {
 
@@ -22,30 +22,6 @@ describe("BugSplat", function () {
         bugsplat._formData = () => fakeFormData;
     });
 
-    it("should throw exception if user doesn't supply a database", () => {
-        try {
-            new BugSplat();
-        } catch (err) {
-            expect(err.message).toContain("no database was specified!");
-        }
-    });
-
-    it("should throw exception if user doesn't supply an appName", () => {
-        try {
-            new BugSplat("fred");
-        } catch (err) {
-            expect(err.message).toContain("no appName was specified!");
-        }
-    });
-
-    it("should throw exception if user doesn't supply an appVersion", () => {
-        try {
-            new BugSplat("fred", "my-node-crasher");
-        } catch (err) {
-            expect(err.message).toContain("no appVersion was specified!");
-        }
-    });
-
     it("should call append with options.additionalFormDataParams if set", async () => {
         const key = "attachment.txt";
         const value = "🐶";
@@ -58,7 +34,7 @@ describe("BugSplat", function () {
     });
 
     it("should use default appKey if options.appKey is not set", async () => {
-        await createDefaultPropertyTest(bugsplat, "appKey", "defaultAppKey", bugsplat.setDefaultAppKey);
+        await createDefaultPropertyTest(bugsplat, "appKey", "defaultAppKey", bugsplat.setDefaultAppKey.bind(bugsplat));
     });
 
     it("should use options.appKey if set", async () => {
@@ -67,7 +43,7 @@ describe("BugSplat", function () {
     });
 
     it("should use default user if options.user is not set", async () => {
-        await createDefaultPropertyTest(bugsplat, "user", "defaultUser", bugsplat.setDefaultUser);
+        await createDefaultPropertyTest(bugsplat, "user", "defaultUser", bugsplat.setDefaultUser.bind(bugsplat));
     });
 
     it("should use options.user if set", async () => {
@@ -76,7 +52,7 @@ describe("BugSplat", function () {
     });
 
     it("should use default email if options.email is not set", async () => {
-        await createDefaultPropertyTest(bugsplat, "email", "defaultEmail", bugsplat.setDefaultEmail);
+        await createDefaultPropertyTest(bugsplat, "email", "defaultEmail", bugsplat.setDefaultEmail.bind(bugsplat));
     });
 
     it("should use options.email if set", async () => {
@@ -85,7 +61,7 @@ describe("BugSplat", function () {
     });
 
     it("should use default description if options.description is not set", async () => {
-        await createDefaultPropertyTest(bugsplat, "description", "defaultDescription", bugsplat.setDefaultDescription);
+        await createDefaultPropertyTest(bugsplat, "description", "defaultDescription", bugsplat.setDefaultDescription.bind(bugsplat));
     });
 
     it("should use options.description if set", async () => {

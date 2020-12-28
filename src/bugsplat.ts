@@ -1,49 +1,21 @@
+import fetchPonyfill from "fetch-ponyfill";
+import { BugSplatOptions } from "./bugsplat-options";
+import { BugSplatResponse } from "./bugsplat-response";
+import FormData from 'form-data';
 
-const fetch = globalThis.fetch ? globalThis.fetch.bind() : require("node-fetch");
-const FormData = globalThis.FormData ? globalThis.FormData : require("form-data");
+export class BugSplat {
 
-module.exports = function (database, appName, appVersion) {
-    if (!database || database === "") {
-        throw new Error("BugSplat error: no database was specified!");
-    }
+    private _fetch = fetchPonyfill().fetch;
+    private _formData = () => new FormData();
 
-    if (!appName || appName === "") {
-        throw new Error("BugSplat error: no appName was specified!");
-    }
+    private _appKey: string = '';
+    private _description: string = '';
+    private _email: string = '';
+    private _user: string = '';
 
-    if (!appVersion || appVersion === "") {
-        throw new Error("BugSplat error: no appVersion was specified!");
-    }
+    constructor(private _database: string, private _appName: string, private _appVersion: string) { }
 
-    this._database = database;
-    this._appName = appName;
-    this._appVersion = appVersion;
-    this._formData = () => new FormData();
-    this._fetch = fetch;
-
-    this._additionalFormDataParams = [];
-    this._appKey = '';
-    this._description = '';
-    this._email = '';
-    this._user = '';
-
-    this.setDefaultAppKey = (appKey) => {
-        this._appKey = appKey;
-    }
-
-    this.setDefaultDescription = (description) => {
-        this._description = description;
-    }
-
-    this.setDefaultEmail = (email) => {
-        this._email = email;
-    }
-
-    this.setDefaultUser = (user) => {
-        this._user = user;
-    }
-
-    this.post = async (errorToPost, options) => {
+    async post(errorToPost: Error, options?: BugSplatOptions): Promise<BugSplatResponse> {
         options = options || {};
 
         const appKey = options.appKey || this._appKey;
@@ -52,13 +24,13 @@ module.exports = function (database, appName, appVersion) {
         const description = options.description || this._description;
         const additionalFormDataParams = options.additionalFormDataParams || [];
 
-        const url = "https://" + database + ".bugsplat.com/post/js/";
-        const callstack = !errorToPost.stack ? errorToPost : errorToPost.stack;
+        const url = "https://" + this._database + ".bugsplat.com/post/js/";
+        const callstack = !errorToPost.stack ? `${errorToPost}` : errorToPost.stack;
         const method = "POST";
-        const body = this._formData();
-        body.append("database", database);
-        body.append("appName", appName);
-        body.append("appVersion", appVersion);
+        const body = <any>this._formData();
+        body.append("database", this._database);
+        body.append("appName", this._appName);
+        body.append("appVersion", this._appVersion);
         body.append("appKey", appKey);
         body.append("user", user);
         body.append("email", email);
@@ -90,7 +62,23 @@ module.exports = function (database, appName, appVersion) {
         return this._createReturnValue(null, json, errorToPost);
     }
 
-    this._createReturnValue = (error, response, original) => {
+    setDefaultAppKey(appKey: string): void {
+        this._appKey = appKey;
+    }
+
+    setDefaultDescription(description: string): void {
+        this._description = description;
+    }
+
+    setDefaultEmail(email: string): void {
+        this._email = email;
+    }
+
+    setDefaultUser(user: string): void {
+        this._user = user;
+    }
+    
+    private _createReturnValue(error: Error | null, response: any, original: Error): BugSplatResponse {
         return {
             error,
             response,
@@ -98,7 +86,7 @@ module.exports = function (database, appName, appVersion) {
         };
     }
 
-    this._tryParseResponseJson = async (response) => {
+    private async _tryParseResponseJson(response: any) {
         let parsed;
         try {
             parsed = await response.json();
@@ -107,4 +95,4 @@ module.exports = function (database, appName, appVersion) {
         }
         return parsed;
     }
-};
+}

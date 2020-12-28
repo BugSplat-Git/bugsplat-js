@@ -1,7 +1,8 @@
-const BugSplat = require("../bugsplat");
-const request = require("request");
-const fs = require("fs");
-const path = require("path");
+import { BugSplat } from '../src/bugsplat';
+import * as fetch from 'node-fetch';
+import * as fs from 'fs';
+import * as path from 'path';
+const FormData = require('form-data');
 const username = "Fred";
 const password = "Flintstone";
 const appBaseUrl = "https://app.bugsplat.com";
@@ -17,19 +18,19 @@ describe("BugSplat", function () {
         const user = "User!";
         const email = "fred@bedrock.com";
         const description = "Description!";
-        const additionalFile = "./e2e/files/additionalFile.txt";
+        const additionalFile = "./spec/files/additionalFile.txt";
         const fileName = path.basename(additionalFile);
         const fileContents = fs.createReadStream(additionalFile);
-        const additionalFormDataParams = [{ key: fileName, value: fileContents }];
+        const additionalFormDataParams = <any>[{ key: fileName, value: fileContents }];
         const bugsplat = new BugSplat(database, appName, appVersion);
         bugsplat.setDefaultAppKey(appKey);
         bugsplat.setDefaultUser(user);
         bugsplat.setDefaultEmail(email);
         bugsplat.setDefaultDescription(description);
         const result = await bugsplat.post(error, { additionalFormDataParams });
-        
+    
         if (result.error) {
-            throw new Error(result.error);
+            throw new Error(result.error.message);
         }
 
         const expectedCrashId = result.response.crash_id;
@@ -47,12 +48,12 @@ describe("BugSplat", function () {
         const database = "fred";
         const appName = "my-node-crasher";
         const appVersion = "4.3.2.1";
-        const errorToPost = "error!";
+        const errorToPost = <any>"error!";
         const bugsplat = new BugSplat(database, appName, appVersion);
 
         const result = await bugsplat.post(errorToPost, {});
         if (result.error) {
-            throw new Error(result.error);
+            throw new Error(result.error.message);
         }
 
         const expectedCrashId = result.response.crash_id;
@@ -79,73 +80,65 @@ describe("BugSplat", function () {
         }
     }, 30000);
 
-    function getCrashData(database, crashId) {
-        return new Promise(function (resolve, reject) {
-            const cookieJar = request.jar();
-            postLogin(username, password, cookieJar)
-                .then(function () {
-                    const getOptions = getCrashDataRequestOptions(database, crashId, cookieJar);
-                    request(getOptions, function (error, response, body) {
-                        if (error) throw new Error(error);
-                        console.log("GET individualCrash status code:", response.statusCode);
-                        console.log("GET individualCrash body:", body);
-                        resolve(JSON.parse(body));
-                    });
-                });
-        });
+    async function getCrashData(database, crashId) {
+        const cookie = await postLogin(username, password)
+        const getOptions = getCrashDataRequestOptions(database, crashId, cookie);
+        const response = await fetch (getOptions.url, getOptions.data);
+        const json = await response.json();
+
+        if (response.status !== 200) {
+             throw new Error('Could not GET crash data!');
+        }
+
+        return json;
     }
 
-    function getCrashDataRequestOptions(database, crashId, cookieJar) {
+    function getCrashDataRequestOptions(database, crashId, cookie) {
         return {
-            method: "GET",
-            url: appBaseUrl + "/api/crash/data",
-            qs: {
-                "database": database,
-                "id": crashId,
-            },
-            headers:
-                {
-                    'cache-control': 'no-cache',
-                    'content-type': 'application/x-www-form-urlencoded'
-                },
-            jar: cookieJar
+            url: appBaseUrl + `/api/crash/data?database=${database}&id=${crashId}`,
+            data: {
+                method: 'GET',
+                cache: 'no-cache',
+                redirect: 'follow',
+                headers: {
+                    cookie: cookie
+                }
+            }
         };
     }
 
-    function postLogin(username, password, cookieJar) {
-        return new Promise(function (resolve, reject) {
-            const postOptions = getLoginPostRequestOptions(username, password, cookieJar);
-            request(postOptions, function (error, response, body) {
-                if (error) throw new Error(error);
-                console.log("POST login status code:", response.statusCode);
-                console.log("POST login body:", body);
-                response.headers['set-cookie'].forEach(function (cookie) {
-                    if (cookie.includes("PHPSESSID")) {
-                        cookieJar.setCookie(cookie, appBaseUrl);
-                        resolve();
-                    }
-                });
-            });
-        });
+    async function postLogin(username, password) {
+        const postOptions = getLoginPostRequestOptions(username, password);
+        const response = await fetch(postOptions.url, postOptions.data);
+        const json = await response.json();
+        const cookie = parseCookies(response);
+
+        return cookie;
     }
 
-    function getLoginPostRequestOptions(username, password, cookieJar) {
+    function getLoginPostRequestOptions(username, password) {
+        const formData = new FormData();
+        formData.append('email', username);
+        formData.append('password', password);
+        formData.append('Login', 'Login');
         return {
-            method: 'POST',
             url: appBaseUrl + '/api/authenticatev3.php',
-            headers:
-                {
-                    'cache-control': 'no-cache',
-                    'content-type': 'application/x-www-form-urlencoded'
-                },
-            form:
-                {
-                    email: username,
-                    password: password,
-                    Login: 'Login'
-                },
-            followAllRedirects: true,
-            jar: cookieJar
+            data: {
+                method: 'POST',
+                credentials: 'include',
+                cache: 'no-cache',
+                body: formData,
+                redirect: 'follow'
+            }
         };
     }
+
+    function parseCookies(response) {
+        const raw = response.headers.raw()['set-cookie'];
+        return raw.map((entry) => {
+          const parts = entry.split(';');
+          const cookiePart = parts[0];
+          return cookiePart;
+        }).join(';');
+      }
 });
