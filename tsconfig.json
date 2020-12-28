@@ -8,7 +8,7 @@
             "DOM"
         ],
         "moduleResolution": "Node",
-        "outDir": "./dist/cjs",
+        "outDir": "./dist",
         "declaration": true,
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
