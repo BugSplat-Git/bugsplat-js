@@ -24,7 +24,7 @@ export class BugSplat {
         const description = options.description || this._description;
         const additionalFormDataParams = options.additionalFormDataParams || [];
         const callstack = this._createStandardizedCallStack(
-            !(<Error>errorToPost).stack ? new Error(<string>errorToPost) : <Error>errorToPost
+            (<Error>errorToPost).stack ? <Error>errorToPost : new Error(<string>errorToPost)
         );
 
         const url = 'https://' + this._database + '.bugsplat.com/post/js/';
