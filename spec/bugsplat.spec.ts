@@ -90,6 +90,33 @@ describe('BugSplat', function () {
         expect(appendSpy).toHaveBeenCalledWith('callstack', expectedError.stack);
     });
 
+    it('should create a stack if none was provided', async () => {
+        const expectedError = 'Error without a stack!';
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
+
+        await bugsplat.post(expectedError, {});
+
+        expect(appendSpy).toHaveBeenCalledWith(
+            'callstack',
+            jasmine.stringMatching(new RegExp(`Error: ${expectedError}.*\n.*at BugSplat\.<anonymous>`))
+        );
+    });
+
+    it('should reconstruct error line of callstack if not provided by browser (Safari)', async () => {
+        const error = {
+            message: 'Stack without a message',
+            stack: 'handlError/<@https://app.bugsplat.com/v2/main-es2015.32bd4307e375ff22d168.js:1:1413880>'
+        };
+        bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
+
+        await bugsplat.post(error, {});
+
+        expect(appendSpy).toHaveBeenCalledWith(
+            'callstack',
+            jasmine.stringMatching(new RegExp(`Error: ${error.message}.*\n${error.stack}`))
+        );
+    });
+
     it('should call fetch url containing database', async () => {
         bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
