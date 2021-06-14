@@ -25,7 +25,7 @@ const { BugSplat } = require('bugsplat');
 
 Create a new instance of the BugSplat class with the name of your BugSplat database, the name of your application and the version of your application:
 ```js
-const bugsplat = new BugSplat("DatabaseName", "AppName", "1.0.0.0");
+const bugsplat = new BugSplat(database, application, version);
 ```
 
 Listen for window.onerror events and post them to BugSplat:
@@ -44,21 +44,21 @@ window.onunhandledrejection = async (rejection) => {
 
 Throw an exception after the event handler has been added. 
 ```js
-throw new Error("BugSplat!");
+throw new Error('BugSplat!');
 ```
 
 You can use bugsplat-js to capture errors that originate inside of try-catch blocks:
 ```js
 try {
-    throw new Error("BugSplat");
+    throw new Error('BugSplat');
 } catch(error) {
     await bugsplat.post(error);
 }
 ```
 
-You can also use bugsplat-js to post errors from non-fatal promise rejections:
+You can also use bugsplat-js to post errors from promise rejections:
 ```js
-Promise.reject(new Error("BugSplat!")).catch(error => bugsplat.post(error, {}));
+Promise.reject(new Error('BugSplat!')).catch(error => bugsplat.post(error, {}));
 ```
 
 After posting an error with bugsplat-js, navigate to the [Crashes](https://app.bugsplat.com/v2/crashes?database=Fred&c0=appName&f0=CONTAINS&v0=my-react-crasher) page. You should see a new crash report for the application you just configured. Click the link in the ID column to see details about your crash on the [Crash](https://app.bugsplat.com/v2/crash?database=Fred&id=94338) page:
@@ -87,4 +87,4 @@ If you are developing a Node.js application and were using bugsplat-js <= 5.0.0 
 
 ## Contributing
 
-BugSplat loves open source software! Please check out our project on [GitHub](https://github.com/BugSplat-Git/bugsplat-js) and send us a Pull Request.
+BugSplat loves open source software! Please check out our project on [GitHub](https://github.com/BugSplat-Git/bugsplat-js) and send us a pull request.

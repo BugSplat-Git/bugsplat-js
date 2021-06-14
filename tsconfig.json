@@ -16,6 +16,6 @@
         "strict": true,
     },
     "files": [
-        "./index.ts"
+        "src/index.ts"
     ]
 }
