@@ -5,7 +5,10 @@
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "browser": "./dist/esm/index.js",
-  "types": "index.d.ts",
+  "types": "./dist/cjs/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "ts-node --project spec/tsconfig.spec.json node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.json",
     "test:teamcity": "ts-node --project spec/tsconfig.spec.json node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.teamcity.json",
@@ -13,7 +16,8 @@
     "e2e:teamcity": "ts-node --project spec/tsconfig.spec.json node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.teamcity.e2e.json",
     "build": "npm run build:cjs && npm run build:esm",
     "build:cjs": "tsc -p tsconfig.cjs.json",
-    "build:esm": "tsc -p tsconfig.esm.json"
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "release": "npm run build && npm publish --access public"
   },
   "keywords": [
     "crash",
