@@ -8,7 +8,9 @@
   "types": "index.d.ts",
   "scripts": {
     "test": "ts-node --project spec/tsconfig.spec.json node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.json",
+    "test:teamcity": "ts-node --project spec/tsconfig.spec.json node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.teamcity.json",
     "e2e": "ts-node --project spec/tsconfig.spec.json node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.e2e.json",
+    "e2e:teamcity": "ts-node --project spec/tsconfig.spec.json node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.teamcity.e2e.json",
     "build": "npm run build:cjs && npm run build:esm",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:esm": "tsc -p tsconfig.esm.json"
@@ -36,10 +38,11 @@
     "form-data": "^3.0.0"
   },
   "devDependencies": {
-    "@bugsplat/js-api-client": "^0.0.3",
+    "@bugsplat/js-api-client": "^0.0.6",
     "@types/jasmine": "^3.6.2",
     "@types/node": "^14.14.16",
     "jasmine": "^3.6.3",
+    "jasmine-reporters": "^2.4.0",
     "ts-node": "^9.1.1",
     "typescript": "^4.1.3"
   }
