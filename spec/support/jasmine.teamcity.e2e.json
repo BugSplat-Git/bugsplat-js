@@ -1,0 +1,11 @@
+{
+  "spec_dir": "spec",
+  "spec_files": [
+    "bugsplat.e2e.spec.ts"
+  ],
+  "helpers": [
+    "./support/teamcity.ts"
+  ],
+  "stopSpecOnExpectationFailure": false,
+  "random": true
+}
