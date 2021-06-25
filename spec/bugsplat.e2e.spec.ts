@@ -9,13 +9,13 @@ const appBaseUrl = 'https://app.bugsplat.com';
 describe('BugSplat', () => {
     let client: CrashApiClient;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         if (!password) {
             throw new Error('Please set FRED_PASSWORD environment variable');
         }
 
         const api = new BugSplatApiClient(appBaseUrl, Environment.Node);
-        api.login(email, password);
+        await api.login(email, password);
         client = new CrashApiClient(api);
     });
 
