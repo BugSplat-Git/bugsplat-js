@@ -25,12 +25,13 @@ describe('BugSplat', function () {
     it('should call append with options.additionalFormDataParams if set', async () => {
         const key = 'attachment.txt';
         const value = '🐶';
-        const additionalFormDataParams = [{key, value}];
+        const options = key;
+        const additionalFormDataParams = [{key, value, options}];
         bugsplat._fetch.and.returnValue(fakeSuccessReponseBody);
 
         await bugsplat.post(new Error('BugSplat!'), { additionalFormDataParams });
 
-        expect(appendSpy).toHaveBeenCalledWith(key, value);
+        expect(appendSpy).toHaveBeenCalledWith(key, value, options);
     });
 
     it('should use default appKey if options.appKey is not set', async () => {
