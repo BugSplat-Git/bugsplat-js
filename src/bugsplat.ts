@@ -13,7 +13,11 @@ export class BugSplat {
     private _email: string = '';
     private _user: string = '';
 
-    constructor(private _database: string, private _appName: string, private _appVersion: string) { }
+    constructor(
+        public readonly database: string,
+        public readonly application: string,
+        public readonly version: string
+    ) { }
 
     async post(errorToPost: Error | string, options?: BugSplatOptions): Promise<BugSplatResponse> {
         options = options || {};
@@ -24,21 +28,21 @@ export class BugSplat {
         const description = options.description || this._description;
         const additionalFormDataParams = options.additionalFormDataParams || [];
         const callstack = this._createStandardizedCallStack(
-            (<Error>errorToPost).stack ? <Error>errorToPost : new Error(<string>errorToPost)
+            (<Error>errorToPost)?.stack ? <Error>errorToPost : new Error(<string>errorToPost)
         );
 
-        const url = 'https://' + this._database + '.bugsplat.com/post/js/';
+        const url = 'https://' + this.database + '.bugsplat.com/post/js/';
         const method = 'POST';
         const body = <any>this._formData();
-        body.append('database', this._database);
-        body.append('appName', this._appName);
-        body.append('appVersion', this._appVersion);
+        body.append('database', this.database);
+        body.append('appName', this.application);
+        body.append('appVersion', this.version);
         body.append('appKey', appKey);
         body.append('user', user);
         body.append('email', email);
         body.append('description', description);
         body.append('callstack', callstack);
-        additionalFormDataParams.forEach(param => body.append(param.key, param.value));
+        additionalFormDataParams.forEach(param => body.append(param.key, param.value, param.options));
 
         console.log('BugSplat Error:', errorToPost);
         console.log('BugSplat Url:', url);
