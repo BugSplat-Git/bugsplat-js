@@ -15,6 +15,7 @@
         "forceConsistentCasingInFileNames": true,
         "removeComments": true,
         "strict": true,
+        "noImplicitAny": false
     },
     "files": [
         "src/index.ts"
