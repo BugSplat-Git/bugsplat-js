@@ -1,4 +1,8 @@
-import { BugSplatApiClient, CrashApiClient, Environment } from '@bugsplat/js-api-client';
+import {
+    BugSplatApiClient,
+    CrashApiClient,
+    Environment,
+} from '@bugsplat/js-api-client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BugSplat } from '../src/bugsplat';
@@ -31,13 +35,15 @@ describe('BugSplat', () => {
         const additionalFile = './spec/files/additionalFile.txt';
         const fileName = path.basename(additionalFile);
         const fileContents = fs.createReadStream(additionalFile);
-        const additionalFormDataParams = <any>[{ key: fileName, value: fileContents }];
+        const additionalFormDataParams = <any>[
+            { key: fileName, value: fileContents },
+        ];
         const bugsplat = new BugSplat(database, appName, appVersion);
         bugsplat.setDefaultAppKey(appKey);
         bugsplat.setDefaultUser(user);
         bugsplat.setDefaultEmail(email);
         bugsplat.setDefaultDescription(description);
-        
+
         const result = await bugsplat.post(error, { additionalFormDataParams });
         if (result.error) {
             throw new Error(result.error.message);
