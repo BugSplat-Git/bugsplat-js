@@ -1,6 +1,10 @@
 import fetchPonyfill from 'fetch-ponyfill';
 import { BugSplatOptions } from './bugsplat-options';
-import { BugSplatResponse } from './bugsplat-response';
+import {
+    BugSplatResponse,
+    BugSplatResponseBody,
+    validateResponseBody,
+} from './bugsplat-response';
 import FormData from 'form-data';
 
 export class BugSplat {
@@ -85,6 +89,14 @@ export class BugSplat {
             );
         }
 
+        if (!validateResponseBody(json)) {
+            return this._createReturnValue(
+                new Error('BugSplat Error: Invalid response received'),
+                json,
+                errorToPost
+            );
+        }
+
         return this._createReturnValue(null, json, errorToPost);
     }
 
@@ -106,7 +118,7 @@ export class BugSplat {
 
     private _createReturnValue(
         error: Error | null,
-        response: any,
+        response: BugSplatResponseBody,
         original: Error | string
     ): BugSplatResponse {
         return {
