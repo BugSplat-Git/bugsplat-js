@@ -4,7 +4,6 @@ import { BugSplatResponse } from './bugsplat-response';
 import FormData from 'form-data';
 
 export class BugSplat {
-
     private _fetch = fetchPonyfill().fetch;
     private _formData = () => new FormData();
 
@@ -17,9 +16,12 @@ export class BugSplat {
         public readonly database: string,
         public readonly application: string,
         public readonly version: string
-    ) { }
+    ) {}
 
-    async post(errorToPost: Error | string, options?: BugSplatOptions): Promise<BugSplatResponse> {
+    async post(
+        errorToPost: Error | string,
+        options?: BugSplatOptions
+    ): Promise<BugSplatResponse> {
         options = options || {};
 
         const appKey = options.appKey || this._appKey;
@@ -28,7 +30,9 @@ export class BugSplat {
         const description = options.description || this._description;
         const additionalFormDataParams = options.additionalFormDataParams || [];
         const callstack = this._createStandardizedCallStack(
-            (<Error>errorToPost)?.stack ? <Error>errorToPost : new Error(<string>errorToPost)
+            (<Error>errorToPost)?.stack
+                ? <Error>errorToPost
+                : new Error(<string>errorToPost)
         );
 
         const url = 'https://' + this.database + '.bugsplat.com/post/js/';
@@ -42,7 +46,9 @@ export class BugSplat {
         body.append('email', email);
         body.append('description', description);
         body.append('callstack', callstack);
-        additionalFormDataParams.forEach(param => body.append(param.key, param.value, param.options));
+        additionalFormDataParams.forEach((param) =>
+            body.append(param.key, param.value, param.options)
+        );
 
         console.log('BugSplat Error:', errorToPost);
         console.log('BugSplat Url:', url);
@@ -54,15 +60,29 @@ export class BugSplat {
         console.log('BugSplat POST response body:', json);
 
         if (response.status === 400) {
-            return this._createReturnValue(new Error('BugSplat Error: Bad request'), json, errorToPost);
+            return this._createReturnValue(
+                new Error('BugSplat Error: Bad request'),
+                json,
+                errorToPost
+            );
         }
 
         if (response.status === 429) {
-            return this._createReturnValue(new Error('BugSplat Error: Rate limit of one crash per second exceeded'), json, errorToPost);
+            return this._createReturnValue(
+                new Error(
+                    'BugSplat Error: Rate limit of one crash per second exceeded'
+                ),
+                json,
+                errorToPost
+            );
         }
 
         if (!response.ok) {
-            return this._createReturnValue(new Error('BugSplat Error: Unknown error'), json, errorToPost);
+            return this._createReturnValue(
+                new Error('BugSplat Error: Unknown error'),
+                json,
+                errorToPost
+            );
         }
 
         return this._createReturnValue(null, json, errorToPost);
@@ -83,12 +103,16 @@ export class BugSplat {
     setDefaultUser(user: string): void {
         this._user = user;
     }
-    
-    private _createReturnValue(error: Error | null, response: any, original: Error | string): BugSplatResponse {
+
+    private _createReturnValue(
+        error: Error | null,
+        response: any,
+        original: Error | string
+    ): BugSplatResponse {
         return {
             error,
             response,
-            original
+            original,
         };
     }
 

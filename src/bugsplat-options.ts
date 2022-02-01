@@ -1,9 +1,9 @@
-import { FormDataParam } from "./form-data-param";
+import { FormDataParam } from './form-data-param';
 
 export interface BugSplatOptions {
     additionalFormDataParams?: Array<FormDataParam>;
     appKey?: string;
-    description?:  string;
+    description?: string;
     email?: string;
     user?: string;
 }

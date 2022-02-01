@@ -10,4 +10,4 @@ interface AppendOptions {
     filename?: string;
     filepath?: string;
     contentType?: string;
-  }
+}
