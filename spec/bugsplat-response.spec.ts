@@ -33,6 +33,10 @@ describe('validateResponseBody', () => {
 
     it('should return false for invalid response bodies', () => {
         const responseBodies = [
+            null,
+            undefined,
+            '',
+            2013,
             {},
             {
                 status: 'succes',
