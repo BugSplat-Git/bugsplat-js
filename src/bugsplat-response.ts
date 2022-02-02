@@ -6,11 +6,25 @@ export interface BugSplatResponseBody {
     crash_id: number;
 }
 
-export interface BugSplatResponse {
-    error?: Error | null;
-    response?: BugSplatResponseBody;
+// export interface BugSplatResponse {
+//     error?: Error | null;
+//     response?: BugSplatResponseBody;
+//     original: Error | string;
+// }
+
+export interface BugSplatSuccessResponse {
+    error: null;
+    response: BugSplatResponseBody;
     original: Error | string;
 }
+
+export interface BugSplatErrorResponse {
+    error: Error;
+    response: unknown;
+    original: Error | string;
+}
+
+export type BugSplatResponse = BugSplatSuccessResponse | BugSplatErrorResponse;
 
 export function validateResponseBody(
     response: unknown

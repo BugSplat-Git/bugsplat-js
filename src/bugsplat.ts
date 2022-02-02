@@ -1,8 +1,10 @@
 import fetchPonyfill from 'fetch-ponyfill';
 import { BugSplatOptions } from './bugsplat-options';
 import {
+    BugSplatErrorResponse,
     BugSplatResponse,
     BugSplatResponseBody,
+    BugSplatSuccessResponse,
     validateResponseBody,
 } from './bugsplat-response';
 import FormData from 'form-data';
@@ -117,6 +119,16 @@ export class BugSplat {
     }
 
     private _createReturnValue(
+        error: null,
+        response: BugSplatResponseBody,
+        original: Error | string
+    ): BugSplatSuccessResponse;
+    private _createReturnValue(
+        error: Error,
+        response: unknown,
+        original: Error | string
+    ): BugSplatErrorResponse;
+    private _createReturnValue(
         error: Error | null,
         response: BugSplatResponseBody,
         original: Error | string
@@ -136,7 +148,9 @@ export class BugSplat {
         return error.stack;
     }
 
-    private async _tryParseResponseJson(response: any) {
+    private async _tryParseResponseJson(response: {
+        json(): Promise<unknown>;
+    }): Promise<unknown> {
         let parsed;
         try {
             parsed = await response.json();
