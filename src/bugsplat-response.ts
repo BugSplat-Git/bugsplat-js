@@ -6,12 +6,6 @@ export interface BugSplatResponseBody {
     crash_id: number;
 }
 
-// export interface BugSplatResponse {
-//     error?: Error | null;
-//     response?: BugSplatResponseBody;
-//     original: Error | string;
-// }
-
 export interface BugSplatSuccessResponse {
     error: null;
     response: BugSplatResponseBody;
