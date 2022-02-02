@@ -9,6 +9,26 @@ import {
 } from './bugsplat-response';
 import FormData from 'form-data';
 
+export function createStandardizedCallStack(error: Error): string {
+    if (!error.stack?.includes('Error:')) {
+        return `Error: ${error.message}\n${error.stack}`;
+    }
+
+    return error.stack;
+}
+
+export async function tryParseResponseJson(response: {
+    json(): Promise<unknown>;
+}): Promise<unknown> {
+    let parsed: unknown;
+    try {
+        parsed = await response.json();
+    } catch (_) {
+        parsed = {};
+    }
+    return parsed;
+}
+
 export class BugSplat {
     private _fetch = fetchPonyfill().fetch;
     private _formData = () => new FormData();
@@ -35,7 +55,7 @@ export class BugSplat {
         const email = options.email || this._email;
         const description = options.description || this._description;
         const additionalFormDataParams = options.additionalFormDataParams || [];
-        const callstack = this._createStandardizedCallStack(
+        const callstack = createStandardizedCallStack(
             (<Error>errorToPost)?.stack
                 ? <Error>errorToPost
                 : new Error(<string>errorToPost)
@@ -60,7 +80,7 @@ export class BugSplat {
         console.log('BugSplat Url:', url);
 
         const response = await this._fetch(url, { method, body });
-        const json = await this._tryParseResponseJson(response);
+        const json = await tryParseResponseJson(response);
 
         console.log('BugSplat POST status code:', response.status);
         console.log('BugSplat POST response body:', json);
@@ -138,25 +158,5 @@ export class BugSplat {
             response,
             original,
         };
-    }
-
-    private _createStandardizedCallStack(error: Error): string {
-        if (!error.stack?.includes('Error:')) {
-            return `Error: ${error.message}\n${error.stack}`;
-        }
-
-        return error.stack;
-    }
-
-    private async _tryParseResponseJson(response: {
-        json(): Promise<unknown>;
-    }): Promise<unknown> {
-        let parsed;
-        try {
-            parsed = await response.json();
-        } catch (_) {
-            parsed = {};
-        }
-        return parsed;
     }
 }
