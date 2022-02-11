@@ -1,13 +1,18 @@
-export interface FormDataParam {
+interface FormDataStringParam {
     key: string;
-    value: string | Blob;
-    options?: AppendOptions | string;
+    value: string;
 }
 
-interface AppendOptions {
-    header?: string | Headers;
-    knownLength?: number;
+interface FormDataBlobParam {
+    key: string;
+    value: Blob;
     filename?: string;
-    filepath?: string;
-    contentType?: string;
+}
+
+export type FormDataParam = FormDataStringParam | FormDataBlobParam;
+
+export function isFormDataStringParam(
+    param: FormDataParam
+): param is FormDataStringParam {
+    return typeof param.value === 'string';
 }
