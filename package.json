@@ -1,6 +1,6 @@
 {
   "name": "bugsplat",
-  "version": "7.1.1",
+  "version": "7.1.2",
   "description": "error reporting for js",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
