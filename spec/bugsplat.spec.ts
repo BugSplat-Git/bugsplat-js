@@ -3,6 +3,7 @@ import {
     createStandardizedCallStack,
     tryParseResponseJson,
 } from '../src/bugsplat';
+import { Blob } from 'buffer';
 
 describe('createStandardizedCallStack', () => {
     it('should always return a call stack containing "Error:"', () => {
@@ -99,18 +100,33 @@ describe('BugSplat', function () {
         bugsplat._formData = () => fakeFormData;
     });
 
-    it('should call append with options.additionalFormDataParams if set', async () => {
-        const key = 'attachment.txt';
-        const value = '🐶';
-        const options = key;
-        const additionalFormDataParams = [{ key, value, options }];
-        bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+    describe('when options.additionalFormDataParams is set', () => {
+        it('should call append with key and value if passed string value', async () => {
+            const key = 'attachment.txt';
+            const value = '🐶';
+            const additionalFormDataParams = [{ key, value }];
+            bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
 
-        await bugsplat.post(new Error('BugSplat!'), {
-            additionalFormDataParams,
+            await bugsplat.post(new Error('BugSplat!'), {
+                additionalFormDataParams,
+            });
+
+            expect(appendSpy).toHaveBeenCalledWith(key, value);
         });
 
-        expect(appendSpy).toHaveBeenCalledWith(key, value, options);
+        it('should call append with key, value and filename if passed Blob value', async () => {
+            const key = 'attachment.txt';
+            const value = new Blob([]);
+            const filename = key;
+            const additionalFormDataParams = [{ key, value, filename }];
+            bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+
+            await bugsplat.post(new Error('BugSplat!'), {
+                additionalFormDataParams,
+            });
+
+            expect(appendSpy).toHaveBeenCalledWith(key, value, filename);
+        });
     });
 
     it('should use default appKey if options.appKey is not set', async () => {
