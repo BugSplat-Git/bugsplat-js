@@ -8,6 +8,7 @@ import {
     validateResponseBody,
 } from './bugsplat-response';
 import FormData from 'form-data';
+import { isFormDataStringParam } from './form-data-param';
 
 export function createStandardizedCallStack(error: Error): string {
     if (!error.stack?.includes('Error:')) {
@@ -72,9 +73,13 @@ export class BugSplat {
         body.append('email', email);
         body.append('description', description);
         body.append('callstack', callstack);
-        additionalFormDataParams.forEach((param) =>
-            body.append(param.key, param.value, param.options)
-        );
+        additionalFormDataParams.forEach((param) => {
+            if (isFormDataStringParam(param)) {
+                body.append(param.key, param.value);
+            } else {
+                body.append(param.key, param.value, param.filename);
+            }
+        });
 
         console.log('BugSplat Error:', errorToPost);
         console.log('BugSplat Url:', url);
