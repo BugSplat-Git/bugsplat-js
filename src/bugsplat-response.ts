@@ -2,7 +2,7 @@ export interface BugSplatResponseBody {
     status: 'success' | 'fail';
     current_server_time: number;
     message: string;
-    url: string;
+    url?: string;
     crash_id: number;
 }
 
@@ -20,16 +20,19 @@ export interface BugSplatErrorResponse {
 
 export type BugSplatResponse = BugSplatSuccessResponse | BugSplatErrorResponse;
 
+const isObject = (val: any): val is object =>
+    typeof val === 'object' && val !== null;
+
 export function validateResponseBody(
     response: unknown
 ): response is BugSplatResponseBody {
     return (
-        typeof response === 'object' &&
-        response !== null &&
+        isObject(response) &&
         (response['status'] === 'success' || response['status'] === 'fail') &&
         typeof response['current_server_time'] === 'number' &&
         typeof response['message'] === 'string' &&
-        typeof response['url'] === 'string' &&
+        (typeof response['url'] === 'string' ||
+            response['url'] === undefined) &&
         typeof response['crash_id'] === 'number'
     );
 }
