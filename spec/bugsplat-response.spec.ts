@@ -74,12 +74,6 @@ describe('validateResponseBody', () => {
                 status: 'success',
                 current_server_time: -100,
                 message: 'message 3',
-                crash_id: 333,
-            },
-            {
-                status: 'success',
-                current_server_time: -100,
-                message: 'message 3',
                 url: 'http://bugsplat.com/rocks',
             },
         ];
