@@ -24,7 +24,7 @@ describe('BugSplat', () => {
     });
 
     it('should post a crash report with all provided information', async () => {
-        const database = 'bobby_new_again';
+        const database = 'fred';
         const appName = 'my-node-crasher';
         const appVersion = '1.2.3.4';
         const error = new Error('BugSplat!!');
