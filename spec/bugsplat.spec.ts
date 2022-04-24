@@ -224,7 +224,7 @@ describe('BugSplat', function () {
             'callstack',
             jasmine.stringMatching(
                 new RegExp(
-                    `Error: ${expectedError}.*\n.*at BugSplat.<anonymous>`
+                    `Error: ${expectedError}.*\n.*at BugSplat\\.<anonymous>`
                 )
             )
         );
