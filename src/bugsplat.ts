@@ -2,10 +2,9 @@ import fetchPonyfill from 'fetch-ponyfill';
 import FormData from 'form-data';
 import type { BugSplatOptions } from './bugsplat-options';
 import {
-    type BugSplatErrorResponse,
     type BugSplatResponse,
     type BugSplatResponseBody,
-    type BugSplatSuccessResponse,
+    type BugSplatResponseType,
     validateResponseBody,
 } from './bugsplat-response';
 import { isFormDataParamString } from './form-data-param';
@@ -35,8 +34,8 @@ export async function tryParseResponseJson(response: {
 }
 
 /**
- * BugSplat crash posting client. Holds some application data and
- * facilitates sending crash reports through the `post()` method
+ * BugSplat crash posting client. Facilitates sending
+ * crash reports through the `post()` method.
  */
 export class BugSplat {
     private _fetch = fetchPonyfill().fetch;
@@ -168,21 +167,11 @@ export class BugSplat {
         this._user = user;
     }
 
-    private _createReturnValue(
-        error: null,
-        response: BugSplatResponseBody,
+    private _createReturnValue<ErrorType extends Error | null>(
+        error: ErrorType,
+        response: ErrorType extends Error ? unknown : BugSplatResponseBody,
         original: Error | string
-    ): BugSplatSuccessResponse;
-    private _createReturnValue(
-        error: Error,
-        response: unknown,
-        original: Error | string
-    ): BugSplatErrorResponse;
-    private _createReturnValue(
-        error: Error | null,
-        response: BugSplatResponseBody,
-        original: Error | string
-    ): BugSplatResponse {
+    ): BugSplatResponseType<ErrorType> {
         return {
             error,
             response,

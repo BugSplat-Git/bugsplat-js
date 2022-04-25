@@ -7,7 +7,7 @@ export interface BugSplatResponseBody {
      */
     status: 'success' | 'fail';
     /**
-     * Server time when response was sent in seconds since epoch.
+     * Server time in seconds since epoch.
      *
      * Get a Date object with:
      * ```
@@ -15,12 +15,9 @@ export interface BugSplatResponseBody {
      * ```
      */
     current_server_time: number;
-    /**
-     * Message from the server
-     */
     message: string;
     /**
-     * Variable support response url
+     * Support response url
      */
     url?: string;
     /**
@@ -29,43 +26,24 @@ export interface BugSplatResponseBody {
     crash_id: number;
 }
 
-/**
- * Post response from BugSplat that was successful.
- */
-export interface BugSplatSuccessResponse {
+export interface BugSplatResponseType<ErrorType extends Error | null> {
     /**
-     * Contains an error if one occurred. Always null for success response.
+     * Contains an error if one occurred.
      */
-    error: null;
+    error: ErrorType;
     /**
-     * Validated crash response object.
+     * Crash response object. Validated if `error` is null.
      */
-    response: BugSplatResponseBody;
+    response: ErrorType extends Error ? unknown : BugSplatResponseBody;
     /**
-     * The original error posted to BugSplat
+     * The original error posted to BugSplat.
      */
     original: Error | string;
 }
 
-/**
- * Post response where an error has occurred.
- */
-export interface BugSplatErrorResponse {
-    /**
-     * Contains an error if one occurred. Always an error for error response.
-     */
-    error: Error;
-    /**
-     * Crash response object. Unknown type because it may have failed validation.
-     */
-    response: unknown;
-    /**
-     * The original error posted to BugSplat
-     */
-    original: Error | string;
-}
-
-export type BugSplatResponse = BugSplatSuccessResponse | BugSplatErrorResponse;
+export type BugSplatResponse =
+    | BugSplatResponseType<null>
+    | BugSplatResponseType<Error>;
 
 const isObject = (val: unknown): val is object =>
     typeof val === 'object' && val !== null;
@@ -73,6 +51,9 @@ const isString = (val: unknown): val is string => typeof val === 'string';
 const isNumber = (val: unknown): val is number => typeof val === 'number';
 const isUndefined = (val: unknown): val is undefined => val === undefined;
 
+/**
+ * Ensure the response body has the expected properties.
+ */
 export function validateResponseBody(
     response: unknown
 ): response is BugSplatResponseBody {
