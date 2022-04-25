@@ -34,10 +34,10 @@ export class BugSplat {
     private _fetch = fetchPonyfill().fetch;
     private _formData = () => new FormData();
 
-    private _appKey: string = '';
-    private _description: string = '';
-    private _email: string = '';
-    private _user: string = '';
+    private _appKey = '';
+    private _description = '';
+    private _email = '';
+    private _user = '';
 
     constructor(
         public readonly database: string,
@@ -64,7 +64,7 @@ export class BugSplat {
 
         const url = 'https://' + this.database + '.bugsplat.com/post/js/';
         const method = 'POST';
-        const body = <any>this._formData();
+        const body = this._formData() as unknown as globalThis.FormData;
         body.append('database', this.database);
         body.append('appName', this.application);
         body.append('appVersion', this.version);
