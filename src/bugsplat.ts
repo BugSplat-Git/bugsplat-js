@@ -33,6 +33,8 @@ export async function tryParseResponseJson(response: {
     return parsed;
 }
 
+const isError = (val: unknown): val is Error => Boolean((val as Error)?.stack);
+
 /**
  * BugSplat crash posting client. Facilitates sending
  * crash reports through the `post()` method.
@@ -69,9 +71,7 @@ export class BugSplat {
         const description = options.description || this._description;
         const additionalFormDataParams = options.additionalFormDataParams || [];
         const callstack = createStandardizedCallStack(
-            (errorToPost as Error)?.stack
-                ? <Error>errorToPost
-                : new Error(<string>errorToPost)
+            isError(errorToPost) ? errorToPost : new Error(errorToPost)
         );
 
         const url = 'https://' + this.database + '.bugsplat.com/post/js/';
