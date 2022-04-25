@@ -1,43 +1,30 @@
-/**
- * FormDataParam with a string value.
- */
-interface FormDataStringParam {
+interface FormDataParamType<T extends string | Blob> {
     /**
-     * Field key to store the value under
+     * The name of the field whose data is contained in `value`.
      */
     key: string;
     /**
-     * Field `string` value
+     * The field's value.
      */
-    value: string;
+    value: T;
+    /**
+     * The filename reported to the server
+     * when `value` is a `Blob` or `File`
+     */
+    filename?: T extends string ? never : string;
 }
 
 /**
- * FormDataParam with a Blob value
+ * Simple object that is used to construct `FormData` objects.
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/FormData/append
  */
-interface FormDataBlobParam {
-    /**
-     * Field key to store the value under
-     */
-    key: string;
-    /**
-     * Field `Blob` or `File` value.
-     */
-    value: Blob;
-    filename?: string;
-}
+export type FormDataParam = FormDataParamType<string> | FormDataParamType<Blob>;
 
 /**
- * Parameter used to construct a FormData object that will be sent to BugSplat.
- * It can have either a string or Blob value.
+ * Check if FormField has a string value
  */
-export type FormDataParam = FormDataStringParam | FormDataBlobParam;
-
-/**
- * Type guard to differentiate FormDataParam sub-type
- */
-export function isFormDataStringParam(
+export function isFormDataParamString(
     param: FormDataParam
-): param is FormDataStringParam {
+): param is FormDataParamType<string> {
     return typeof param.value === 'string';
 }
