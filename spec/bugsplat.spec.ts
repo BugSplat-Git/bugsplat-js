@@ -55,7 +55,7 @@ describe('tryParseResponseJson', () => {
     });
 
     it('should return an empty object if an error occurs', () => {
-        const inputs = values.map(async (value) => {
+        const inputs = values.map(async () => {
             const result = await tryParseResponseJson({
                 json: async () => {
                     throw new Error('parsing error');
@@ -224,7 +224,7 @@ describe('BugSplat', function () {
             'callstack',
             jasmine.stringMatching(
                 new RegExp(
-                    `Error: ${expectedError}.*\n.*at BugSplat\.<anonymous>`
+                    `Error: ${expectedError}.*\n.*at BugSplat\\.<anonymous>`
                 )
             )
         );
@@ -341,7 +341,9 @@ describe('BugSplat', function () {
         bugsplat,
         propertyName,
         propertyValue,
-        propertySetter = (value) => {}
+        propertySetter = (value) => {
+            value;
+        }
     ) {
         bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
 
