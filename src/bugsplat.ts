@@ -169,7 +169,7 @@ export class BugSplat {
 
     private _createReturnValue<ErrorType extends Error | null>(
         error: ErrorType,
-        response: ErrorType extends Error ? unknown : BugSplatResponseBody,
+        response: ErrorType extends null ? BugSplatResponseBody : unknown,
         original: Error | string
     ): BugSplatResponseType<ErrorType> {
         return {

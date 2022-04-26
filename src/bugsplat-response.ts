@@ -34,7 +34,7 @@ export interface BugSplatResponseType<ErrorType extends Error | null> {
     /**
      * Crash response object. Validated if `error` is null.
      */
-    response: ErrorType extends Error ? unknown : BugSplatResponseBody;
+    response: ErrorType extends null ? BugSplatResponseBody : unknown;
     /**
      * The original error posted to BugSplat.
      */
