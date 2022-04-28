@@ -1,14 +1,13 @@
 import fetchPonyfill from 'fetch-ponyfill';
-import { BugSplatOptions } from './bugsplat-options';
+import FormData from 'form-data';
+import type { BugSplatOptions } from './bugsplat-options';
 import {
-    BugSplatErrorResponse,
-    BugSplatResponse,
-    BugSplatResponseBody,
-    BugSplatSuccessResponse,
+    type BugSplatResponse,
+    type BugSplatResponseBody,
+    type BugSplatResponseType,
     validateResponseBody,
 } from './bugsplat-response';
-import FormData from 'form-data';
-import { isFormDataStringParam } from './form-data-param';
+import { isFormDataParamString } from './form-data-param';
 
 export function createStandardizedCallStack(error: Error): string {
     if (!error.stack?.includes('Error:')) {
@@ -18,6 +17,10 @@ export function createStandardizedCallStack(error: Error): string {
     return error.stack;
 }
 
+/**
+ * Attempt to parse a response body as json
+ * @returns parsed body or an empty object if an error occurred while parsing
+ */
 export async function tryParseResponseJson(response: {
     json(): Promise<unknown>;
 }): Promise<unknown> {
@@ -30,6 +33,12 @@ export async function tryParseResponseJson(response: {
     return parsed;
 }
 
+const isError = (val: unknown): val is Error => Boolean((val as Error)?.stack);
+
+/**
+ * BugSplat crash posting client. Facilitates sending
+ * crash reports through the `post()` method.
+ */
 export class BugSplat {
     private _fetch = fetchPonyfill().fetch;
     private _formData = () => new FormData();
@@ -45,6 +54,11 @@ export class BugSplat {
         public readonly version: string
     ) {}
 
+    /**
+     * Posts an arbitrary Error object to BugSplat
+     * @param errorToPost - Error object or a message to be sent to BugSplat
+     * @param options - Additional parameters that can be sent to BugSplat
+     */
     async post(
         errorToPost: Error | string,
         options?: BugSplatOptions
@@ -57,9 +71,7 @@ export class BugSplat {
         const description = options.description || this._description;
         const additionalFormDataParams = options.additionalFormDataParams || [];
         const callstack = createStandardizedCallStack(
-            (<Error>errorToPost)?.stack
-                ? <Error>errorToPost
-                : new Error(<string>errorToPost)
+            isError(errorToPost) ? errorToPost : new Error(errorToPost)
         );
 
         const url = 'https://' + this.database + '.bugsplat.com/post/js/';
@@ -74,7 +86,7 @@ export class BugSplat {
         body.append('description', description);
         body.append('callstack', callstack);
         additionalFormDataParams.forEach((param) => {
-            if (isFormDataStringParam(param)) {
+            if (isFormDataParamString(param)) {
                 body.append(param.key, param.value);
             } else {
                 body.append(param.key, param.value, param.filename);
@@ -127,37 +139,39 @@ export class BugSplat {
         return this._createReturnValue(null, json, errorToPost);
     }
 
+    /**
+     * Additional metadata that can be queried via BugSplat's web application
+     */
     setDefaultAppKey(appKey: string): void {
         this._appKey = appKey;
     }
 
+    /**
+     * Additional info about your crash that gets reset after every post
+     */
     setDefaultDescription(description: string): void {
         this._description = description;
     }
 
+    /**
+     * The email of your user
+     */
     setDefaultEmail(email: string): void {
         this._email = email;
     }
 
+    /**
+     * The name or id of your user
+     */
     setDefaultUser(user: string): void {
         this._user = user;
     }
 
-    private _createReturnValue(
-        error: null,
-        response: BugSplatResponseBody,
+    private _createReturnValue<ErrorType extends Error | null>(
+        error: ErrorType,
+        response: ErrorType extends null ? BugSplatResponseBody : unknown,
         original: Error | string
-    ): BugSplatSuccessResponse;
-    private _createReturnValue(
-        error: Error,
-        response: unknown,
-        original: Error | string
-    ): BugSplatErrorResponse;
-    private _createReturnValue(
-        error: Error | null,
-        response: BugSplatResponseBody,
-        original: Error | string
-    ): BugSplatResponse {
+    ): BugSplatResponseType<ErrorType> {
         return {
             error,
             response,

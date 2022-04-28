@@ -1,4 +1,4 @@
 export { BugSplat } from './bugsplat';
-export { BugSplatOptions } from './bugsplat-options';
-export { BugSplatResponse } from './bugsplat-response';
-export { FormDataParam } from './form-data-param';
+export type { BugSplatOptions } from './bugsplat-options';
+export type { BugSplatResponse } from './bugsplat-response';
+export type { FormDataParam } from './form-data-param';
