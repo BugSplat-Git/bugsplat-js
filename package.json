@@ -43,7 +43,7 @@
         "form-data": "^3.0.0"
     },
     "devDependencies": {
-        "@bugsplat/js-api-client": "^0.0.6",
+        "@bugsplat/js-api-client": "^2.0.0",
         "@types/jasmine": "^3.10.3",
         "@types/node": "^16.11.24",
         "@typescript-eslint/eslint-plugin": "^5.20.0",
