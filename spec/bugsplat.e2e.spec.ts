@@ -19,7 +19,7 @@ describe('BugSplat', () => {
         const api = await BugSplatApiClient.createAuthenticatedClientForNode(email, password);
         client = new CrashApiClient(api);
         
-        // Posting to frequently results in 400s from the web server
+        // Posting too frequently results in 400s from the web server
         await new Promise(resolve => setTimeout(resolve, 1000));
     });
 
