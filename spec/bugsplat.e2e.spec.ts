@@ -1,14 +1,12 @@
 import {
     BugSplatApiClient,
     CrashApiClient,
-    Environment,
 } from '@bugsplat/js-api-client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BugSplat } from '../src/bugsplat';
 const email = 'fred@bugsplat.com';
 const password = process.env.FRED_PASSWORD;
-const appBaseUrl = 'https://app.bugsplat.com';
 
 describe('BugSplat', () => {
     let client: CrashApiClient;
@@ -18,9 +16,11 @@ describe('BugSplat', () => {
             throw new Error('Please set FRED_PASSWORD environment variable');
         }
 
-        const api = new BugSplatApiClient(appBaseUrl, Environment.Node);
-        await api.login(email, password);
+        const api = await BugSplatApiClient.createAuthenticatedClientForNode(email, password);
         client = new CrashApiClient(api);
+        
+        // Posting to frequently results in 400s from the web server
+        await new Promise(resolve => setTimeout(resolve, 1000));
     });
 
     it('should post a crash report with all provided information', async () => {
