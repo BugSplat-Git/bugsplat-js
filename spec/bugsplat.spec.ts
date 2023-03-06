@@ -79,6 +79,7 @@ describe('BugSplat', function () {
     let fakeFormData;
     let fakeCrashResponse;
     let fakeSuccessResponseBody;
+    let fetchSpy;
 
     beforeEach(() => {
         appendSpy = jasmine.createSpy();
@@ -96,8 +97,8 @@ describe('BugSplat', function () {
             ok: true,
         };
         bugsplat = new BugSplat(database, appName, appVersion);
-        bugsplat._fetch = jasmine.createSpy();
         bugsplat._formData = () => fakeFormData;
+        fetchSpy = spyOn(globalThis, 'fetch');
     });
 
     describe('when options.additionalFormDataParams is set', () => {
@@ -105,7 +106,7 @@ describe('BugSplat', function () {
             const key = 'attachment.txt';
             const value = '🐶';
             const additionalFormDataParams = [{ key, value }];
-            bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+            fetchSpy.and.returnValue(fakeSuccessResponseBody);
 
             await bugsplat.post(new Error('BugSplat!'), {
                 additionalFormDataParams,
@@ -119,7 +120,7 @@ describe('BugSplat', function () {
             const value = new Blob([]);
             const filename = key;
             const additionalFormDataParams = [{ key, value, filename }];
-            bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+            fetchSpy.and.returnValue(fakeSuccessResponseBody);
 
             await bugsplat.post(new Error('BugSplat!'), {
                 additionalFormDataParams,
@@ -204,7 +205,7 @@ describe('BugSplat', function () {
 
     it('should append callstack to post body', async () => {
         const expectedError = new Error('BugSplat!');
-        bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.and.returnValue(fakeSuccessResponseBody);
 
         await bugsplat.post(expectedError, {});
 
@@ -216,7 +217,7 @@ describe('BugSplat', function () {
 
     it('should create a stack if none was provided', async () => {
         const expectedError = 'Error without a stack!';
-        bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.and.returnValue(fakeSuccessResponseBody);
 
         await bugsplat.post(expectedError, {});
 
@@ -235,7 +236,7 @@ describe('BugSplat', function () {
             message: 'Stack without a message',
             stack: 'handlError/<@https://app.bugsplat.com/v2/main-es2015.32bd4307e375ff22d168.js:1:1413880>',
         };
-        bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.and.returnValue(fakeSuccessResponseBody);
 
         await bugsplat.post(error, {});
 
@@ -248,22 +249,22 @@ describe('BugSplat', function () {
     });
 
     it('should call fetch url containing database', async () => {
-        bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.and.returnValue(fakeSuccessResponseBody);
 
         await bugsplat.post(new Error('BugSplat!'));
 
-        expect(bugsplat._fetch).toHaveBeenCalledWith(
+        expect(fetchSpy).toHaveBeenCalledWith(
             `https://${database}.bugsplat.com/post/js/`,
             jasmine.anything()
         );
     });
 
     it('should call fetch with method and body', async () => {
-        bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.and.returnValue(fakeSuccessResponseBody);
 
         await bugsplat.post(new Error('BugSplat!'));
 
-        expect(bugsplat._fetch).toHaveBeenCalledWith(
+        expect(fetchSpy).toHaveBeenCalledWith(
             jasmine.anything(),
             jasmine.objectContaining({
                 method: 'POST',
@@ -274,7 +275,7 @@ describe('BugSplat', function () {
 
     it('should return response body and original error if BugSplat POST returns 200', async () => {
         const errorToPost = new Error('BugSplat!');
-        bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.and.returnValue(fakeSuccessResponseBody);
 
         const result = await bugsplat.post(errorToPost, {});
 
@@ -285,7 +286,7 @@ describe('BugSplat', function () {
 
     it('should return BugSplat error, response body and original error if BugSplat POST returns an invalid response', async () => {
         const errorToPost = new Error('BugSplat!');
-        bugsplat._fetch.and.returnValue({
+        fetchSpy.and.returnValue({
             status: 200,
             json: async () => ({}),
             ok: true,
@@ -300,7 +301,7 @@ describe('BugSplat', function () {
 
     it('should return BugSplat error, response body and original error if BugSplat POST returns 400', async () => {
         const errorToPost = new Error('BugSplat!');
-        bugsplat._fetch.and.returnValue({
+        fetchSpy.and.returnValue({
             status: 400,
             json: async () => ({}),
         });
@@ -312,7 +313,7 @@ describe('BugSplat', function () {
 
     it('should return BugSplat error, response body and original error if BugSplat POST returns 429', async () => {
         const errorToPost = new Error('BugSplat!');
-        bugsplat._fetch.and.returnValue({
+        fetchSpy.and.returnValue({
             status: 429,
             json: async () => ({}),
         });
@@ -326,7 +327,7 @@ describe('BugSplat', function () {
 
     it('should return BugSplat error, response body and original error for unknown BugSplat POST error', async () => {
         const errorToPost = new Error('BugSplat!');
-        bugsplat._fetch.and.returnValue({
+        fetchSpy.and.returnValue({
             status: 500,
             json: async () => ({}),
             ok: false,
@@ -345,7 +346,7 @@ describe('BugSplat', function () {
             value;
         }
     ) {
-        bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.and.returnValue(fakeSuccessResponseBody);
 
         propertySetter(propertyValue);
         await bugsplat.post(new Error('BugSplat!'), {});
@@ -359,7 +360,7 @@ describe('BugSplat', function () {
         propertyName,
         propertyValue
     ) {
-        bugsplat._fetch.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.and.returnValue(fakeSuccessResponseBody);
 
         await bugsplat.post(new Error('BugSplat!'), postOptions);
 

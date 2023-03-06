@@ -38,7 +38,6 @@ const isError = (val: unknown): val is Error => Boolean((val as Error)?.stack);
  * crash reports through the `post()` method.
  */
 export class BugSplat {
-    private _fetch = globalThis.fetch;
     private _formData = () => new FormData();
 
     private _appKey = '';
@@ -94,7 +93,7 @@ export class BugSplat {
         console.log('BugSplat Error:', errorToPost);
         console.log('BugSplat Url:', url);
 
-        const response = await this._fetch(url, { method, body });
+        const response = await globalThis.fetch(url, { method, body });
         const json = await tryParseResponseJson(response);
 
         console.log('BugSplat POST status code:', response.status);
