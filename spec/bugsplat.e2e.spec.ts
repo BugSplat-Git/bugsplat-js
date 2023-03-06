@@ -63,7 +63,7 @@ describe('BugSplat', () => {
         const database = 'fred';
         const appName = 'my-node-crasher';
         const appVersion = '4.3.2.1';
-        const errorToPost = <any>'error!';
+        const errorToPost = 'error!';
         const bugsplat = new BugSplat(database, appName, appVersion);
 
         const result = await bugsplat.post(errorToPost, {});
