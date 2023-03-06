@@ -9,6 +9,10 @@
     "files": [
         "dist"
     ],
+    "engines": {
+        "npm": ">=8.0.0",
+        "node": ">=16.0.0"
+    },
     "scripts": {
         "test": "ts-node node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.spec.json",
         "test:teamcity": "ts-node node_modules/jasmine/bin/jasmine --config=spec/support/jasmine.teamcity.spec.json",
@@ -38,10 +42,6 @@
     },
     "author": "@bobbyg603",
     "license": "MIT",
-    "dependencies": {
-        "fetch-ponyfill": "^7.0.0",
-        "form-data": "^3.0.0"
-    },
     "devDependencies": {
         "@bugsplat/js-api-client": "^2.0.0",
         "@types/jasmine": "^3.10.3",

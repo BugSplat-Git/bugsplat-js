@@ -12,15 +12,20 @@
 </div>
 
 ## 👋 Introduction
+
 BugSplat-js is a JavaScript error reporting system for web applications. Before continuing with the tutorial please make sure you have completed the following checklist:
 * [Sign Up](https://app.bugsplat.com/v2/sign-up) as a new BugSplat user.
 * [Log In](https://app.bugsplat.com/auth0/login) using your email address.
 
 ## 🏗 Installation
-To add the bugsplat package to your application, run the following shell command at the root of your project’s directory:
+
+Install `bugsplat` via npm. This package currently requires Node.js 18 or later.
+
 ```shell
-npm install --save bugsplat
+npm i bugsplat --save
 ```
+
+If you need to use a version of Node.js that's older than 18, you can install bugsplat@7.1.4.
 
 ## ⚙️ Configuration
 
