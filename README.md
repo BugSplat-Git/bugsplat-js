@@ -21,7 +21,7 @@ BugSplat-js is a JavaScript error reporting system for web applications. Before 
 
 Install `bugsplat` via npm. This package currently requires Node.js 18 or later.
 
-```shell
+```sh
 npm i bugsplat --save
 ```
 
@@ -31,41 +31,41 @@ If you need to use a version of Node.js that's older than 18, you can install bu
 
 Depending on your project's module system you can either `import` or `require` BugSplat:
 ### ESM
-```js
+```ts
 import { BugSplat } from 'bugsplat';
 ```
 
 ### CommonJS
-```
+```ts
 const { BugSplat } = require('bugsplat');
 ```
 
 Create a new instance of the BugSplat class with the name of your BugSplat database, the name of your application and the version of your application:
-```js
+```ts
 const bugsplat = new BugSplat(database, application, version);
 ```
 
 Listen for `window.onerror` events and post them to BugSplat:
-```js
+```ts
 window.onerror = async (event, source, lineno, colno, error) => {
   await bugsplat.post(error);
 }
 ```
 
 Also listen for `window.unhandledpromiserejection` events and post them to BugSplat:
-```js
+```ts
 window.onunhandledrejection = async (rejection) => {
   await bugsplat.post(rejection.reason)
 }
 ```
 
 Throw an exception after the event handler has been added. 
-```js
+```ts
 throw new Error('BugSplat!');
 ```
 
 You can use bugsplat-js to capture errors that originate inside of try-catch blocks:
-```js
+```ts
 try {
     throw new Error('BugSplat');
 } catch(error) {
@@ -74,7 +74,7 @@ try {
 ```
 
 You can also use bugsplat-js to post errors from promise rejections:
-```js
+```ts
 Promise.reject(new Error('BugSplat!')).catch(error => bugsplat.post(error, {}));
 ```
 
@@ -90,7 +90,7 @@ That’s it! Your application is now configured to post crash reports to BugSpla
 ## 🧩 API
 
 In addition to the configuration demonstrated above, there are a few public methods that can be used to customize your BugSplat integration:
-```js
+```ts
 bugsplat.setDefaultAppKey(appKey); // Additional metadata that can be queried via BugSplat's web application
 bugsplat.setDefaultUser(user); // The name or id of your user
 bugsplat.setDefaultEmail(email); // The email of your user
