@@ -82,8 +82,8 @@ Promise.reject(new Error('BugSplat!')).catch(error => bugsplat.post(error, {}));
 
 After posting an error with bugsplat-js, navigate to the [Crashes](https://app.bugsplat.com/v2/crashes?database=Fred&c0=appName&f0=CONTAINS&v0=my-react-crasher) page. You should see a new crash report for the application you just configured. Click the link in the ID column to see details about your crash on the [Crash](https://app.bugsplat.com/v2/crash?database=Fred&id=94338) page:
 
-![Crashes](https://s3.amazonaws.com/bugsplat-public/npm/bugsplat-js/crashes.png)
-![Crash](https://s3.amazonaws.com/bugsplat-public/npm/bugsplat-js/crash.png)
+![Crashes](https://github.com/BugSplat-Git/bugsplat-js/assets/2646053/ae9acf37-5e1e-4436-9513-4543ad9c16d1)
+![Crash](https://github.com/BugSplat-Git/bugsplat-js/assets/2646053/8338a4db-891d-4ca6-96f6-c3e8222098ae)
 
 That’s it! Your application is now configured to post crash reports to BugSplat.
 
