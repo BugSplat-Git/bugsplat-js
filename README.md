@@ -13,7 +13,7 @@
 
 ## 👋 Introduction
 
-BugSplat-js is a JavaScript error reporting system for web applications. Before continuing with the tutorial please make sure you have completed the following checklist:
+BugSplat-js is a JavaScript error-reporting system for web applications. Before continuing with the tutorial, please make sure you have completed the following checklist:
 * [Sign Up](https://app.bugsplat.com/v2/sign-up) as a new BugSplat user.
 * [Log In](https://app.bugsplat.com/auth0/login) using your email address.
 
@@ -25,11 +25,12 @@ Install `bugsplat` via npm. This package currently requires Node.js 18 or later.
 npm i bugsplat --save
 ```
 
-If you need to use a version of Node.js that's older than 18, you can install bugsplat@7.1.4.
+If you need to use a version of Node.js older than 18, you can install bugsplat@7.1.4.
 
 ## ⚙️ Configuration
 
-Depending on your project's module system you can either `import` or `require` BugSplat:
+Depending on your project's module system, you can either `import` or `require` BugSplat:
+
 ### ESM
 ```ts
 import { BugSplat } from 'bugsplat';
@@ -38,6 +39,11 @@ import { BugSplat } from 'bugsplat';
 ### CommonJS
 ```ts
 const { BugSplat } = require('bugsplat');
+```
+
+### Deno
+```ts
+import { BugSplat } from 'https://esm.sh/bugsplat@8.0.1';
 ```
 
 Create a new instance of the BugSplat class with the name of your BugSplat database, the name of your application and the version of your application:
