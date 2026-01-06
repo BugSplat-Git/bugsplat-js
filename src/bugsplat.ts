@@ -25,7 +25,7 @@ export async function tryParseResponseJson(response: {
     let parsed: unknown;
     try {
         parsed = await response.json();
-    } catch (_) {
+    } catch {
         parsed = {};
     }
     return parsed;
@@ -71,7 +71,7 @@ export class BugSplat {
             isError(errorToPost) ? errorToPost : new Error(errorToPost)
         );
 
-        const url = 'https://' + this.database + '.bugsplat.com/post/js/';
+        const url = process.env.BUGSPLAT_CRASH_POST_URL || 'https://' + this.database + '.bugsplat.com/post/js/';
         const method = 'POST';
         const body = this._formData();
         body.append('database', this.database);

@@ -1,10 +1,11 @@
-import {
-    BugSplatApiClient,
-    CrashApiClient,
-} from '@bugsplat/js-api-client';
+import { BugSplatApiClient, CrashApiClient } from '@bugsplat/js-api-client';
 import { readFile } from 'fs/promises';
 import * as path from 'path';
 import { BugSplat } from '../src/bugsplat';
+import { config } from 'dotenv';
+
+config();
+
 const email = 'fred@bugsplat.com';
 const password = process.env.FRED_PASSWORD;
 
@@ -18,9 +19,9 @@ describe('BugSplat', () => {
 
         const api = await BugSplatApiClient.createAuthenticatedClientForNode(email, password);
         client = new CrashApiClient(api);
-        
+
         // Posting too frequently results in 400s from the web server
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
     });
 
     it('should post a crash report with all provided information', async () => {
@@ -36,7 +37,12 @@ describe('BugSplat', () => {
         const fileName = path.basename(additionalFile);
         const fileContents = await readFile(additionalFile);
         const additionalFormDataParams = [
-            { key: fileName, value: new Blob([fileContents]), filename: fileName },
+            {
+                key: fileName,
+                value: new Blob([new Uint8Array(fileContents)]),
+                filename: fileName,
+            },
+            { key: 'attributes', value: '{"foo": "bar"}' },
         ];
         const bugsplat = new BugSplat(database, appName, appVersion);
         bugsplat.setDefaultAppKey(appKey);
