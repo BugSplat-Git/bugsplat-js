@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import {
     BugSplat,
     createStandardizedCallStack,
@@ -75,14 +76,14 @@ describe('BugSplat', function () {
     const expectedCrashId = 73180;
 
     let bugsplat;
-    let appendSpy;
+    let appendSpy: Mock;
     let fakeFormData;
     let fakeCrashResponse;
     let fakeSuccessResponseBody;
-    let fetchSpy;
+    let fetchSpy: Mock;
 
     beforeEach(() => {
-        appendSpy = jasmine.createSpy();
+        appendSpy = vi.fn();
         fakeFormData = { append: appendSpy, toString: () => 'BugSplat rocks!' };
         fakeCrashResponse = {
             status: 'success',
@@ -98,7 +99,7 @@ describe('BugSplat', function () {
         };
         bugsplat = new BugSplat(database, appName, appVersion);
         bugsplat._formData = () => fakeFormData;
-        fetchSpy = spyOn(globalThis, 'fetch');
+        fetchSpy = vi.spyOn(globalThis, 'fetch') as unknown as Mock;
     });
 
     describe('when options.additionalFormDataParams is set', () => {
@@ -106,7 +107,7 @@ describe('BugSplat', function () {
             const key = 'attachment.txt';
             const value = '🐶';
             const additionalFormDataParams = [{ key, value }];
-            fetchSpy.and.returnValue(fakeSuccessResponseBody);
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
             await bugsplat.post(new Error('BugSplat!'), {
                 additionalFormDataParams,
@@ -120,7 +121,7 @@ describe('BugSplat', function () {
             const value = new Blob([]);
             const filename = key;
             const additionalFormDataParams = [{ key, value, filename }];
-            fetchSpy.and.returnValue(fakeSuccessResponseBody);
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
             await bugsplat.post(new Error('BugSplat!'), {
                 additionalFormDataParams,
@@ -205,7 +206,7 @@ describe('BugSplat', function () {
 
     it('should append callstack to post body', async () => {
         const expectedError = new Error('BugSplat!');
-        fetchSpy.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
         await bugsplat.post(expectedError, {});
 
@@ -217,15 +218,31 @@ describe('BugSplat', function () {
 
     it('should create a stack if none was provided', async () => {
         const expectedError = 'Error without a stack!';
-        fetchSpy.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
         await bugsplat.post(expectedError, {});
 
         expect(appendSpy).toHaveBeenCalledWith(
             'callstack',
-            jasmine.stringMatching(
+            expect.stringMatching(
                 new RegExp(
-                    `Error: ${expectedError}.*\n.*at BugSplat\\.<anonymous>`
+                    `Error: ${expectedError}.*\n.*at BugSplat\\.`
+                )
+            )
+        );
+    });
+
+    it('should create a stack if stack is only spaces', async () => {
+        const expectedError = '      ';
+        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+        await bugsplat.post(expectedError, {});
+
+        expect(appendSpy).toHaveBeenCalledWith(
+            'callstack',
+            expect.stringMatching(
+                new RegExp(
+                    `Error: ${expectedError}.*\n.*at BugSplat\\.`
                 )
             )
         );
@@ -236,37 +253,37 @@ describe('BugSplat', function () {
             message: 'Stack without a message',
             stack: 'handlError/<@https://app.bugsplat.com/v2/main-es2015.32bd4307e375ff22d168.js:1:1413880>',
         };
-        fetchSpy.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
         await bugsplat.post(error, {});
 
         expect(appendSpy).toHaveBeenCalledWith(
             'callstack',
-            jasmine.stringMatching(
+            expect.stringMatching(
                 new RegExp(`Error: ${error.message}.*\n${error.stack}`)
             )
         );
     });
 
     it('should call fetch url containing database', async () => {
-        fetchSpy.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
         await bugsplat.post(new Error('BugSplat!'));
 
         expect(fetchSpy).toHaveBeenCalledWith(
             `https://${database}.bugsplat.com/post/js/`,
-            jasmine.anything()
+            expect.anything()
         );
     });
 
     it('should call fetch with method and body', async () => {
-        fetchSpy.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
         await bugsplat.post(new Error('BugSplat!'));
 
         expect(fetchSpy).toHaveBeenCalledWith(
-            jasmine.anything(),
-            jasmine.objectContaining({
+            expect.anything(),
+            expect.objectContaining({
                 method: 'POST',
                 body: fakeFormData,
             })
@@ -275,7 +292,7 @@ describe('BugSplat', function () {
 
     it('should return response body and original error if BugSplat POST returns 200', async () => {
         const errorToPost = new Error('BugSplat!');
-        fetchSpy.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
         const result = await bugsplat.post(errorToPost, {});
 
@@ -286,7 +303,7 @@ describe('BugSplat', function () {
 
     it('should return BugSplat error, response body and original error if BugSplat POST returns an invalid response', async () => {
         const errorToPost = new Error('BugSplat!');
-        fetchSpy.and.returnValue({
+        fetchSpy.mockResolvedValue({
             status: 200,
             json: async () => ({}),
             ok: true,
@@ -301,7 +318,7 @@ describe('BugSplat', function () {
 
     it('should return BugSplat error, response body and original error if BugSplat POST returns 400', async () => {
         const errorToPost = new Error('BugSplat!');
-        fetchSpy.and.returnValue({
+        fetchSpy.mockResolvedValue({
             status: 400,
             json: async () => ({}),
         });
@@ -313,7 +330,7 @@ describe('BugSplat', function () {
 
     it('should return BugSplat error, response body and original error if BugSplat POST returns 429', async () => {
         const errorToPost = new Error('BugSplat!');
-        fetchSpy.and.returnValue({
+        fetchSpy.mockResolvedValue({
             status: 429,
             json: async () => ({}),
         });
@@ -327,7 +344,7 @@ describe('BugSplat', function () {
 
     it('should return BugSplat error, response body and original error for unknown BugSplat POST error', async () => {
         const errorToPost = new Error('BugSplat!');
-        fetchSpy.and.returnValue({
+        fetchSpy.mockResolvedValue({
             status: 500,
             json: async () => ({}),
             ok: false,
@@ -342,11 +359,11 @@ describe('BugSplat', function () {
         bugsplat,
         propertyName,
         propertyValue,
-        propertySetter = (value) => {
-            value;
+        propertySetter = (_value) => {
+            // no-op
         }
     ) {
-        fetchSpy.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
         propertySetter(propertyValue);
         await bugsplat.post(new Error('BugSplat!'), {});
@@ -360,7 +377,7 @@ describe('BugSplat', function () {
         propertyName,
         propertyValue
     ) {
-        fetchSpy.and.returnValue(fakeSuccessResponseBody);
+        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
         await bugsplat.post(new Error('BugSplat!'), postOptions);
 

@@ -1,11 +1,11 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "target": "es5",
         "module": "commonjs",
         "outDir": "./dist/cjs",
+        "types": ["node"]
     },
     "files": [
         "src/index.ts"
     ]
-  }
+}

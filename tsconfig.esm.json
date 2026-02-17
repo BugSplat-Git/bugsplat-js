@@ -4,6 +4,7 @@
         "target": "ESNext",
         "module": "ESNext",
         "outDir": "./dist/esm",
+        "types": ["node"]
     },
     "files": [
         "src/index.ts"

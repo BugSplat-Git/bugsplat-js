@@ -1,12 +1,12 @@
 {
     "compilerOptions": {
-        "target": "es5",
+        "target": "ES2020",
         "module": "commonjs",
         "lib": [
-            "es5",
-            "es2015",
+            "ES2020",
             "DOM"
         ],
+        "types": ["vitest/globals"],
         "sourceMap": true,
         "moduleResolution": "Node",
         "outDir": "./dist",
@@ -15,6 +15,7 @@
         "forceConsistentCasingInFileNames": true,
         "removeComments": true,
         "strict": true,
-        "noImplicitAny": false
-    },
+        "noImplicitAny": false,
+        "skipLibCheck": true
+    }
 }

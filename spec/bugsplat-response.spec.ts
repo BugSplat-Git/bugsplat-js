@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { validateResponseBody } from '../src/bugsplat-response';
 
 describe('validateResponseBody', () => {
@@ -27,7 +28,7 @@ describe('validateResponseBody', () => {
         ];
 
         responseBodies.forEach((body) => {
-            expect(validateResponseBody(body)).toBeTrue();
+            expect(validateResponseBody(body)).toBe(true);
         });
     });
 
@@ -79,7 +80,7 @@ describe('validateResponseBody', () => {
         ];
 
         responseBodies.forEach((body) => {
-            expect(validateResponseBody(body)).toBeFalse();
+            expect(validateResponseBody(body)).toBe(false);
         });
     });
 });
