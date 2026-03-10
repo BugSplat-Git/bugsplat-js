@@ -30,3 +30,29 @@ export interface BugSplatOptions {
      */
     user?: string;
 }
+
+/**
+ * Additional parameters that can be passed to `postFeedback()`
+ */
+export interface BugSplatFeedbackOptions {
+    /**
+     * Additional feedback context
+     */
+    description?: string;
+    /**
+     * The email of the user submitting feedback
+     */
+    email?: string;
+    /**
+     * The name or id of the user submitting feedback
+     */
+    user?: string;
+    /**
+     * Additional metadata that can be queried via BugSplat's web application
+     */
+    appKey?: string;
+    /**
+     * Define arbitrary fields to be appended to the commit form data
+     */
+    additionalFormDataParams?: Array<FormDataParam>;
+}
