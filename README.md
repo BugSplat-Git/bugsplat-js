@@ -106,6 +106,31 @@ async bugsplat.post(error, options); // Posts an arbitrary Error object to BugSp
 // Returns a promise that resolves with properties: error (if there was an error posting to BugSplat), response (the response from the BugSplat crash post API), and original (the error passed by bugsplat.post)
 ```
 
+### User Feedback
+
+You can also submit non-crashing user feedback (e.g. bug reports, feature requests) using `postFeedback`. Feedback reports appear in BugSplat with the "User Feedback" crash type, grouped by `title`.
+
+```ts
+const response = await bugsplat.postFeedback('Login button does not respond', {
+  description: 'Tapping login on iPhone does nothing.',
+  user: 'jane@example.com',
+  email: 'jane@example.com',
+});
+```
+
+You can attach files such as screenshots:
+
+```ts
+const screenshot = document.querySelector('input[type="file"]').files[0];
+
+await bugsplat.postFeedback('UI rendering issue', {
+  description: 'The sidebar overlaps the main content.',
+  attachments: [
+    { filename: 'screenshot.png', data: screenshot },
+  ],
+});
+```
+
 ## 📢 Upgrading
 
 If you are developing a Node.js application and were using bugsplat-js <= 5.0.0 please upgrade to [bugsplat-node](https://www.npmjs.com/package/bugsplat-node). BugSplat-node has the same consumer APIs as bugsplat-js <= 5.0.0. Additionally, support for file attachments and exiting the Node process in the error handler have been moved to [bugsplat-node](https://www.npmjs.com/package/bugsplat-node) so that bugsplat-js can be run in browsers as well as Node.js environments.
