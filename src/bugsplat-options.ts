@@ -32,6 +32,20 @@ export interface BugSplatOptions {
 }
 
 /**
+ * A file attachment to include in the feedback zip (e.g. a screenshot).
+ */
+export interface BugSplatAttachment {
+    /**
+     * The filename as it will appear inside the zip
+     */
+    filename: string;
+    /**
+     * The file contents
+     */
+    data: Blob | Uint8Array;
+}
+
+/**
  * Additional parameters that can be passed to `postFeedback()`
  */
 export interface BugSplatFeedbackOptions {
@@ -51,6 +65,10 @@ export interface BugSplatFeedbackOptions {
      * Additional metadata that can be queried via BugSplat's web application
      */
     appKey?: string;
+    /**
+     * File attachments to include in the feedback zip (e.g. screenshots)
+     */
+    attachments?: Array<BugSplatAttachment>;
     /**
      * Define arbitrary fields to be appended to the commit form data
      */

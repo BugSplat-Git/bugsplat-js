@@ -153,9 +153,18 @@ export class BugSplat {
         const email = options.email || this._email;
         const description = options.description || this._description;
 
-        // Create feedback.json and zip it
+        // Create zip with feedback.json and any attachments
         const feedbackJson = JSON.stringify({ title, description });
-        const zipData = zipSync({ 'feedback.json': strToU8(feedbackJson) });
+        const zipFiles: Record<string, Uint8Array> = {
+            'feedback.json': strToU8(feedbackJson),
+        };
+        for (const attachment of options.attachments || []) {
+            const bytes = attachment.data instanceof Uint8Array
+                ? attachment.data
+                : new Uint8Array(await attachment.data.arrayBuffer());
+            zipFiles[attachment.filename] = bytes;
+        }
+        const zipData = zipSync(zipFiles);
 
         const baseUrl = process.env.BUGSPLAT_CRASH_POST_URL?.replace(/\/post\/js\/?$/, '') || `https://${this.database}.bugsplat.com`;
 
@@ -189,7 +198,7 @@ export class BugSplat {
 
         const putResponse = await globalThis.fetch(presignedUrl, {
             method: 'PUT',
-            body: zipData,
+            body: new Blob([zipData.buffer as ArrayBuffer], { type: 'application/zip' }),
             headers: { 'Content-Type': 'application/zip' }
         });
 
