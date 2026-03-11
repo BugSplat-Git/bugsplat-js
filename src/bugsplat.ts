@@ -162,7 +162,7 @@ export class BugSplat {
         const description = options.description || this._description;
 
         const zipData = zipSync(zipFiles);
-        const baseUrl = process.env.BUGSPLAT_BASE_URL || `https://${this.database}.bugsplat.com`;
+        const baseUrl = (typeof process !== 'undefined' && process.env?.BUGSPLAT_BASE_URL) || `https://${this.database}.bugsplat.com`;
 
         // Step 1: Get presigned upload URL
         const getCrashUrlParams = new URLSearchParams({
