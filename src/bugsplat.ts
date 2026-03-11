@@ -254,7 +254,15 @@ export class BugSplat {
             );
         }
 
-        return this._createReturnValue(null, json as any, title);
+        if (!validateResponseBody(json)) {
+            return this._createReturnValue(
+                new Error('BugSplat Error: Invalid response received'),
+                json,
+                title
+            );
+        }
+
+        return this._createReturnValue(null, json, title);
     }
 
     /**
