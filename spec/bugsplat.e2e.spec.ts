@@ -17,7 +17,10 @@ describe('BugSplat', () => {
             throw new Error('Please set FRED_PASSWORD environment variable');
         }
 
-        const api = await BugSplatApiClient.createAuthenticatedClientForNode(email, password);
+        const api = await BugSplatApiClient.createAuthenticatedClientForNode(
+            email,
+            password,
+        );
         client = new CrashApiClient(api);
 
         // Posting too frequently results in 400s from the web server
@@ -36,26 +39,62 @@ describe('BugSplat', () => {
         const additionalFile = './spec/files/additionalFile.txt';
         const fileName = path.basename(additionalFile);
         const fileContents = await readFile(additionalFile);
-        const additionalFormDataParams = [
-            {
-                key: fileName,
-                value: new Blob([new Uint8Array(fileContents)]),
-                filename: fileName,
-            },
-            { key: 'attributes', value: '{"foo": "bar"}' },
-        ];
         const bugsplat = new BugSplat(database, appName, appVersion);
         bugsplat.setDefaultAppKey(appKey);
         bugsplat.setDefaultUser(user);
         bugsplat.setDefaultEmail(email);
         bugsplat.setDefaultDescription(description);
 
-        const result = await bugsplat.post(error, { additionalFormDataParams });
+        const result = await bugsplat.post(error, {
+            attachments: [
+                { data: new Uint8Array(fileContents), filename: fileName },
+            ],
+            attributes: { foo: 'bar' },
+        });
         if (result.error) {
             throw new Error(result.error.message);
         }
 
-        const expectedCrashId = result.response.crash_id;
+        const expectedCrashId = result.response.crashId;
+        const crashData = await client.getCrashById(database, expectedCrashId);
+        expect(crashData.appName).toEqual(appName);
+        expect(crashData.appVersion).toEqual(appVersion);
+        expect(crashData.appKey).toEqual(appKey);
+        expect(crashData.description).toEqual(description);
+        expect(crashData.user).toBeTruthy(); // Fred has PII obfuscated so the best we can do here is to check if truthy
+        expect(crashData.email).toBeTruthy(); // Fred has PII obfuscated so the best we can do here is to check if truthy
+    }, 30000);
+
+    it('should post a feedback report with all provided information', async () => {
+        const database = 'fred';
+        const appName = 'my-node-crasher';
+        const appVersion = '1.2.3.4';
+        const appKey = 'Key!';
+        const user = 'User!';
+        const email = 'fred@bedrock.com';
+        const title = 'Symbol Store Size Limit';
+        const description =
+            'I hit the 8 GB symbol size limit and can no longer upload symbols';
+        const additionalFile = './spec/files/additionalFile.txt';
+        const fileName = path.basename(additionalFile);
+        const fileContents = await readFile(additionalFile);
+        const bugsplat = new BugSplat(database, appName, appVersion);
+        bugsplat.setDefaultAppKey(appKey);
+        bugsplat.setDefaultUser(user);
+        bugsplat.setDefaultEmail(email);
+        bugsplat.setDefaultDescription(description);
+
+        const result = await bugsplat.postFeedback(title, {
+            attachments: [
+                { data: new Uint8Array(fileContents), filename: fileName },
+            ],
+            attributes: { foo: 'bar' },
+        });
+        if (result.error) {
+            throw new Error(result.error.message);
+        }
+
+        const expectedCrashId = result.response.crashId;
         const crashData = await client.getCrashById(database, expectedCrashId);
         expect(crashData.appName).toEqual(appName);
         expect(crashData.appVersion).toEqual(appVersion);
@@ -76,7 +115,7 @@ describe('BugSplat', () => {
         if (result.error) {
             throw new Error(result.error.message);
         }
-        const expectedCrashId = result.response.crash_id;
+        const expectedCrashId = result.response.crashId;
         const crashData = await client.getCrashById(database, expectedCrashId);
 
         expect(crashData.appName).toEqual(appName);

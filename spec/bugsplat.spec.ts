@@ -4,7 +4,6 @@ import {
     createStandardizedCallStack,
     tryParseResponseJson,
 } from '../src/bugsplat';
-import { Blob } from 'buffer';
 
 describe('createStandardizedCallStack', () => {
     it('should always return a call stack containing "Error:"', () => {
@@ -72,315 +71,255 @@ describe('BugSplat', function () {
     const database = 'fred';
     const appName = 'my-node-crasher';
     const appVersion = '1.0.0.0';
-    const expectedStatus = 'success';
     const expectedCrashId = 73180;
 
-    let bugsplat;
+    let bugsplat: InstanceType<typeof BugSplat>;
     let appendSpy: Mock;
     let fakeFormData;
-    let fakeCrashResponse;
-    let fakeSuccessResponseBody;
     let fetchSpy: Mock;
+
+    const fakePresignedUrlResponse = {
+        ok: true,
+        json: async () => ({ url: 'https://s3.example.com/presigned' }),
+    };
+
+    const fakePutResponse = {
+        ok: true,
+        headers: { get: (key: string) => key === 'ETag' ? '"abc123"' : null },
+    };
+
+    const fakeCommitResponse = {
+        ok: true,
+        status: 200,
+        json: async () => ({
+            status: 'success',
+            crashId: expectedCrashId,
+            stackKeyId: 1,
+            messageId: 1,
+            infoUrl: 'https://app.bugsplat.com/browse/crashInfo.php',
+        }),
+    };
 
     beforeEach(() => {
         appendSpy = vi.fn();
         fakeFormData = { append: appendSpy, toString: () => 'BugSplat rocks!' };
-        fakeCrashResponse = {
-            status: 'success',
-            current_server_time: 1,
-            message: 'BugSplat rocks!',
-            url: 'bugsplat.rocks/yes-its-true',
-            crash_id: expectedCrashId,
-        };
-        fakeSuccessResponseBody = {
-            status: expectedStatus,
-            json: async () => fakeCrashResponse,
-            ok: true,
-        };
         bugsplat = new BugSplat(database, appName, appVersion);
-        bugsplat._formData = () => fakeFormData;
+        (bugsplat as any)._formData = () => fakeFormData;
         fetchSpy = vi.spyOn(globalThis, 'fetch') as unknown as Mock;
+        fetchSpy
+            .mockResolvedValueOnce(fakePresignedUrlResponse)
+            .mockResolvedValueOnce(fakePutResponse)
+            .mockResolvedValueOnce(fakeCommitResponse);
     });
 
-    describe('when options.additionalFormDataParams is set', () => {
-        it('should call append with key and value if passed string value', async () => {
-            const key = 'attachment.txt';
-            const value = '🐶';
-            const additionalFormDataParams = [{ key, value }];
-            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+    describe('presigned URL upload flow', () => {
+        it('should request a presigned URL with correct query params', async () => {
+            await bugsplat.post(new Error('BugSplat!'));
 
-            await bugsplat.post(new Error('BugSplat!'), {
-                additionalFormDataParams,
-            });
-
-            expect(appendSpy).toHaveBeenCalledWith(key, value);
+            const url = new URL(fetchSpy.mock.calls[0][0]);
+            expect(url.pathname).toEqual('/api/getCrashUploadUrl');
+            expect(url.searchParams.get('database')).toEqual(database);
+            expect(url.searchParams.get('appName')).toEqual(appName);
+            expect(url.searchParams.get('appVersion')).toEqual(appVersion);
         });
 
-        it('should call append with key, value and filename if passed Blob value', async () => {
-            const key = 'attachment.txt';
-            const value = new Blob([]);
-            const filename = key;
-            const additionalFormDataParams = [{ key, value, filename }];
-            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+        it('should PUT to the presigned URL', async () => {
+            await bugsplat.post(new Error('BugSplat!'));
+
+            expect(fetchSpy.mock.calls[1][0]).toEqual('https://s3.example.com/presigned');
+            expect(fetchSpy.mock.calls[1][1].method).toEqual('PUT');
+        });
+
+        it('should commit with correct form data fields', async () => {
+            const appKey = 'myKey';
+            const user = 'myUser';
+            const email = 'my@email.com';
+            const description = 'myDescription';
 
             await bugsplat.post(new Error('BugSplat!'), {
-                additionalFormDataParams,
+                appKey,
+                user,
+                email,
+                description,
             });
 
-            expect(appendSpy).toHaveBeenCalledWith(key, value, filename);
+            expect(appendSpy).toHaveBeenCalledWith('database', database);
+            expect(appendSpy).toHaveBeenCalledWith('appName', appName);
+            expect(appendSpy).toHaveBeenCalledWith('appVersion', appVersion);
+            expect(appendSpy).toHaveBeenCalledWith('crashTypeId', '14');
+            expect(appendSpy).toHaveBeenCalledWith('s3Key', 'https://s3.example.com/presigned');
+            expect(appendSpy).toHaveBeenCalledWith('md5', 'abc123');
+            expect(appendSpy).toHaveBeenCalledWith('appKey', appKey);
+            expect(appendSpy).toHaveBeenCalledWith('user', user);
+            expect(appendSpy).toHaveBeenCalledWith('email', email);
+            expect(appendSpy).toHaveBeenCalledWith('description', description);
+        });
+
+        it('should commit with crashTypeId 36 for feedback', async () => {
+            await bugsplat.postFeedback('My feedback');
+
+            expect(appendSpy).toHaveBeenCalledWith('crashTypeId', '36');
+        });
+    });
+
+    describe('when options.attributes is set', () => {
+        it('should append JSON-serialized attributes to commit body', async () => {
+            const attributes = { foo: 'bar', baz: 'qux' };
+
+            await bugsplat.post(new Error('BugSplat!'), { attributes });
+
+            expect(appendSpy).toHaveBeenCalledWith(
+                'attributes',
+                JSON.stringify(attributes)
+            );
+        });
+
+        it('should not append attributes if empty object', async () => {
+            await bugsplat.post(new Error('BugSplat!'), { attributes: {} });
+
+            expect(appendSpy).not.toHaveBeenCalledWith(
+                'attributes',
+                expect.anything()
+            );
+        });
+
+        it('should use default attributes if options.attributes is not set', async () => {
+            const attributes = { env: 'production' };
+            bugsplat.setDefaultAttributes(attributes);
+
+            await bugsplat.post(new Error('BugSplat!'), {});
+
+            expect(appendSpy).toHaveBeenCalledWith(
+                'attributes',
+                JSON.stringify(attributes)
+            );
+        });
+
+        it('should use options.attributes over default attributes', async () => {
+            const defaultAttributes = { env: 'production' };
+            const overrideAttributes = { env: 'staging' };
+            bugsplat.setDefaultAttributes(defaultAttributes);
+
+            await bugsplat.post(new Error('BugSplat!'), {
+                attributes: overrideAttributes,
+            });
+
+            expect(appendSpy).toHaveBeenCalledWith(
+                'attributes',
+                JSON.stringify(overrideAttributes)
+            );
         });
     });
 
     it('should use default appKey if options.appKey is not set', async () => {
-        await createDefaultPropertyTest(
-            bugsplat,
-            'appKey',
-            'defaultAppKey',
-            bugsplat.setDefaultAppKey.bind(bugsplat)
-        );
+        bugsplat.setDefaultAppKey('defaultAppKey');
+        await bugsplat.post(new Error('BugSplat!'), {});
+        expect(appendSpy).toHaveBeenCalledWith('appKey', 'defaultAppKey');
     });
 
     it('should use options.appKey if set', async () => {
-        const appKey = 'overridenAppKey';
-        await createOptionsOverrideTest(bugsplat, { appKey }, 'appKey', appKey);
+        await bugsplat.post(new Error('BugSplat!'), { appKey: 'overridenAppKey' });
+        expect(appendSpy).toHaveBeenCalledWith('appKey', 'overridenAppKey');
     });
 
     it('should use default user if options.user is not set', async () => {
-        await createDefaultPropertyTest(
-            bugsplat,
-            'user',
-            'defaultUser',
-            bugsplat.setDefaultUser.bind(bugsplat)
-        );
+        bugsplat.setDefaultUser('defaultUser');
+        await bugsplat.post(new Error('BugSplat!'), {});
+        expect(appendSpy).toHaveBeenCalledWith('user', 'defaultUser');
     });
 
     it('should use options.user if set', async () => {
-        const user = 'overridenUser';
-        await createOptionsOverrideTest(bugsplat, { user }, 'user', user);
+        await bugsplat.post(new Error('BugSplat!'), { user: 'overridenUser' });
+        expect(appendSpy).toHaveBeenCalledWith('user', 'overridenUser');
     });
 
     it('should use default email if options.email is not set', async () => {
-        await createDefaultPropertyTest(
-            bugsplat,
-            'email',
-            'defaultEmail',
-            bugsplat.setDefaultEmail.bind(bugsplat)
-        );
+        bugsplat.setDefaultEmail('defaultEmail');
+        await bugsplat.post(new Error('BugSplat!'), {});
+        expect(appendSpy).toHaveBeenCalledWith('email', 'defaultEmail');
     });
 
     it('should use options.email if set', async () => {
-        const email = 'overridenEmail';
-        await createOptionsOverrideTest(bugsplat, { email }, 'email', email);
+        await bugsplat.post(new Error('BugSplat!'), { email: 'overridenEmail' });
+        expect(appendSpy).toHaveBeenCalledWith('email', 'overridenEmail');
     });
 
     it('should use default description if options.description is not set', async () => {
-        await createDefaultPropertyTest(
-            bugsplat,
-            'description',
-            'defaultDescription',
-            bugsplat.setDefaultDescription.bind(bugsplat)
-        );
+        bugsplat.setDefaultDescription('defaultDescription');
+        await bugsplat.post(new Error('BugSplat!'), {});
+        expect(appendSpy).toHaveBeenCalledWith('description', 'defaultDescription');
     });
 
     it('should use options.description if set', async () => {
-        const description = 'overridenDescription';
-        await createOptionsOverrideTest(
-            bugsplat,
-            { description },
-            'description',
-            description
-        );
+        await bugsplat.post(new Error('BugSplat!'), { description: 'overridenDescription' });
+        expect(appendSpy).toHaveBeenCalledWith('description', 'overridenDescription');
     });
 
-    it('should append database to post body', async () => {
-        await createDefaultPropertyTest(bugsplat, 'database', database);
-    });
-
-    it('should append appName to post body', async () => {
-        await createDefaultPropertyTest(bugsplat, 'appName', appName);
-    });
-
-    it('should append appVersion to post body', async () => {
-        await createDefaultPropertyTest(bugsplat, 'appVersion', appVersion);
-    });
-
-    it('should append callstack to post body', async () => {
-        const expectedError = new Error('BugSplat!');
-        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
-
-        await bugsplat.post(expectedError, {});
-
-        expect(appendSpy).toHaveBeenCalledWith(
-            'callstack',
-            expectedError.stack
-        );
-    });
-
-    it('should create a stack if none was provided', async () => {
-        const expectedError = 'Error without a stack!';
-        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
-
-        await bugsplat.post(expectedError, {});
-
-        expect(appendSpy).toHaveBeenCalledWith(
-            'callstack',
-            expect.stringMatching(
-                new RegExp(
-                    `Error: ${expectedError}.*\n.*at BugSplat\\.`
-                )
-            )
-        );
-    });
-
-    it('should create a stack if stack is only spaces', async () => {
-        const expectedError = '      ';
-        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
-
-        await bugsplat.post(expectedError, {});
-
-        expect(appendSpy).toHaveBeenCalledWith(
-            'callstack',
-            expect.stringMatching(
-                new RegExp(
-                    `Error: ${expectedError}.*\n.*at BugSplat\\.`
-                )
-            )
-        );
-    });
-
-    it('should reconstruct error line of callstack if not provided by browser (Safari)', async () => {
-        const error = {
-            message: 'Stack without a message',
-            stack: 'handlError/<@https://app.bugsplat.com/v2/main-es2015.32bd4307e375ff22d168.js:1:1413880>',
-        };
-        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
-
-        await bugsplat.post(error, {});
-
-        expect(appendSpy).toHaveBeenCalledWith(
-            'callstack',
-            expect.stringMatching(
-                new RegExp(`Error: ${error.message}.*\n${error.stack}`)
-            )
-        );
-    });
-
-    it('should call fetch url containing database', async () => {
-        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
-
-        await bugsplat.post(new Error('BugSplat!'));
-
-        expect(fetchSpy).toHaveBeenCalledWith(
-            `https://${database}.bugsplat.com/post/js/`,
-            expect.anything()
-        );
-    });
-
-    it('should call fetch with method and body', async () => {
-        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
-
-        await bugsplat.post(new Error('BugSplat!'));
-
-        expect(fetchSpy).toHaveBeenCalledWith(
-            expect.anything(),
-            expect.objectContaining({
-                method: 'POST',
-                body: fakeFormData,
-            })
-        );
-    });
-
-    it('should return response body and original error if BugSplat POST returns 200', async () => {
+    it('should return response body and original error on success', async () => {
         const errorToPost = new Error('BugSplat!');
-        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
         const result = await bugsplat.post(errorToPost, {});
 
-        expect(result.error).toBeFalsy();
-        expect(result.response.crash_id).toEqual(expectedCrashId);
-        expect(result.original.message).toEqual(errorToPost.message);
-    });
-
-    it('should return BugSplat error, response body and original error if BugSplat POST returns an invalid response', async () => {
-        const errorToPost = new Error('BugSplat!');
-        fetchSpy.mockResolvedValue({
-            status: 200,
-            json: async () => ({}),
-            ok: true,
-        });
-
-        const result = await bugsplat.post(errorToPost, {});
-        expect(result.error.message).toEqual(
-            'BugSplat Error: Invalid response received'
-        );
-        expect(result.original.message).toEqual(errorToPost.message);
-    });
-
-    it('should return BugSplat error, response body and original error if BugSplat POST returns 400', async () => {
-        const errorToPost = new Error('BugSplat!');
-        fetchSpy.mockResolvedValue({
-            status: 400,
-            json: async () => ({}),
-        });
-
-        const result = await bugsplat.post(errorToPost, {});
-        expect(result.error.message).toEqual('BugSplat Error: Bad request');
-        expect(result.original.message).toEqual(errorToPost.message);
-    });
-
-    it('should return BugSplat error, response body and original error if BugSplat POST returns 429', async () => {
-        const errorToPost = new Error('BugSplat!');
-        fetchSpy.mockResolvedValue({
-            status: 429,
-            json: async () => ({}),
-        });
-
-        const result = await bugsplat.post(errorToPost, {});
-        expect(result.error.message).toEqual(
-            'BugSplat Error: Rate limit of one crash per second exceeded'
-        );
-        expect(result.original.message).toEqual(errorToPost.message);
-    });
-
-    it('should return BugSplat error, response body and original error for unknown BugSplat POST error', async () => {
-        const errorToPost = new Error('BugSplat!');
-        fetchSpy.mockResolvedValue({
-            status: 500,
-            json: async () => ({}),
-            ok: false,
-        });
-
-        const result = await bugsplat.post(errorToPost, {});
-        expect(result.error.message).toEqual('BugSplat Error: Unknown error');
-        expect(result.original.message).toEqual(errorToPost.message);
-    });
-
-    async function createDefaultPropertyTest(
-        bugsplat,
-        propertyName,
-        propertyValue,
-        propertySetter = (_value) => {
-            // no-op
+        expect(result.error).toBeNull();
+        if (!result.error) {
+            expect(result.response.crashId).toEqual(expectedCrashId);
         }
-    ) {
-        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+        expect(result.original).toBe(errorToPost);
+    });
 
-        propertySetter(propertyValue);
-        await bugsplat.post(new Error('BugSplat!'), {});
+    it('should return error if presigned URL request fails', async () => {
+        fetchSpy.mockReset();
+        fetchSpy.mockResolvedValueOnce({ ok: false });
 
-        expect(appendSpy).toHaveBeenCalledWith(propertyName, propertyValue);
-    }
+        const result = await bugsplat.post(new Error('BugSplat!'), {});
 
-    async function createOptionsOverrideTest(
-        bugsplat,
-        postOptions,
-        propertyName,
-        propertyValue
-    ) {
-        fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+        expect(result.error).not.toBeNull();
+        expect(result.error!.message).toEqual('BugSplat Error: Failed to get upload URL');
+    });
 
-        await bugsplat.post(new Error('BugSplat!'), postOptions);
+    it('should return error if S3 upload fails', async () => {
+        fetchSpy.mockReset();
+        fetchSpy
+            .mockResolvedValueOnce(fakePresignedUrlResponse)
+            .mockResolvedValueOnce({ ok: false });
 
-        expect(appendSpy).toHaveBeenCalledWith(propertyName, propertyValue);
-    }
+        const result = await bugsplat.post(new Error('BugSplat!'), {});
+
+        expect(result.error).not.toBeNull();
+        expect(result.error!.message).toEqual('BugSplat Error: Failed to upload to S3');
+    });
+
+    it('should return error if commit fails', async () => {
+        fetchSpy.mockReset();
+        fetchSpy
+            .mockResolvedValueOnce(fakePresignedUrlResponse)
+            .mockResolvedValueOnce(fakePutResponse)
+            .mockResolvedValueOnce({
+                ok: false,
+                status: 500,
+                json: async () => ({}),
+            });
+
+        const result = await bugsplat.post(new Error('BugSplat!'), {});
+
+        expect(result.error).not.toBeNull();
+        expect(result.error!.message).toEqual('BugSplat Error: Failed to commit upload');
+    });
+
+    it('should return error if commit response is invalid', async () => {
+        fetchSpy.mockReset();
+        fetchSpy
+            .mockResolvedValueOnce(fakePresignedUrlResponse)
+            .mockResolvedValueOnce(fakePutResponse)
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => ({}),
+            });
+
+        const result = await bugsplat.post(new Error('BugSplat!'), {});
+
+        expect(result.error).not.toBeNull();
+        expect(result.error!.message).toEqual('BugSplat Error: Invalid response received');
+    });
 });
