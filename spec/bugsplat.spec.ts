@@ -73,7 +73,8 @@ describe('BugSplat', function () {
     const appVersion = '1.0.0.0';
     const expectedCrashId = 73180;
 
-    let bugsplat: InstanceType<typeof BugSplat>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped to allow mocking private fields
+    let bugsplat: any;
     let appendSpy: Mock;
     let fakeFormData;
     let fetchSpy: Mock;
@@ -104,7 +105,7 @@ describe('BugSplat', function () {
         appendSpy = vi.fn();
         fakeFormData = { append: appendSpy, toString: () => 'BugSplat rocks!' };
         bugsplat = new BugSplat(database, appName, appVersion);
-        (bugsplat as any)._formData = () => fakeFormData;
+        bugsplat._formData = () => fakeFormData;
         fetchSpy = vi.spyOn(globalThis, 'fetch') as unknown as Mock;
         fetchSpy
             .mockResolvedValueOnce(fakePresignedUrlResponse)
