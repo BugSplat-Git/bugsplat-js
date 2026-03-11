@@ -1,24 +1,39 @@
-import { FormDataParam } from './form-data-param';
+/**
+ * A file attachment to include in the upload zip.
+ */
+export interface BugSplatAttachment {
+    /**
+     * The filename as it will appear inside the zip
+     */
+    filename: string;
+    /**
+     * The file contents
+     */
+    data: Blob | Uint8Array;
+}
 
 /**
- * Additional parameters that can be passed to `post()`
+ * Additional parameters that can be passed to `post()` or `postFeedback()`
  *
  * If any of `appKey`, `user`, `email`, `description` are set,
  * the corresponding default values will be overwritten
  */
 export interface BugSplatOptions {
     /**
-     * Define arbitrary fields to be appended to the form data
-     * object to be sent. This is useful to pass any additional
-     * data as string or `blob`.
-     */
-    additionalFormDataParams?: Array<FormDataParam>;
-    /**
      * Additional metadata that can be queried via BugSplat's web application
      */
     appKey?: string;
     /**
-     * Additional info about your crash that gets reset after every post
+     * Key/value attributes to attach to the report.
+     * These are searchable via BugSplat's web application.
+     */
+    attributes?: Record<string, string>;
+    /**
+     * File attachments to include in the upload zip
+     */
+    attachments?: Array<BugSplatAttachment>;
+    /**
+     * Additional info about the crash or feedback
      */
     description?: string;
     /**

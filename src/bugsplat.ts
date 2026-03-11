@@ -1,3 +1,4 @@
+import { zipSync, strToU8 } from 'fflate';
 import type { BugSplatOptions } from './bugsplat-options';
 import {
     type BugSplatResponse,
@@ -5,7 +6,6 @@ import {
     type BugSplatResponseType,
     validateResponseBody,
 } from './bugsplat-response';
-import { isFormDataParamString } from './form-data-param';
 
 export function createStandardizedCallStack(error: Error): string {
     if (!error.stack?.includes('Error:')) {
@@ -34,13 +34,13 @@ export async function tryParseResponseJson(response: {
 const isError = (val: unknown): val is Error => Boolean((val as Error)?.stack);
 
 /**
- * BugSplat crash posting client. Facilitates sending
- * crash reports through the `post()` method.
+ * BugSplat crash and feedback posting client.
  */
 export class BugSplat {
     private _formData = () => new FormData();
 
     private _appKey = '';
+    private _attributes: Record<string, string> = {};
     private _description = '';
     private _email = '';
     private _user = '';
@@ -52,7 +52,7 @@ export class BugSplat {
     ) {}
 
     /**
-     * Posts an arbitrary Error object to BugSplat
+     * Posts an arbitrary Error object to BugSplat via presigned URL upload
      * @param errorToPost - Error object or a message to be sent to BugSplat
      * @param options - Additional parameters that can be sent to BugSplat
      */
@@ -62,78 +62,52 @@ export class BugSplat {
     ): Promise<BugSplatResponse> {
         options = options || {};
 
-        const appKey = options.appKey || this._appKey;
-        const user = options.user || this._user;
-        const email = options.email || this._email;
-        const description = options.description || this._description;
-        const additionalFormDataParams = options.additionalFormDataParams || [];
         const callstack = createStandardizedCallStack(
             isError(errorToPost) ? errorToPost : new Error(errorToPost)
         );
 
-        const url = process.env.BUGSPLAT_CRASH_POST_URL || 'https://' + this.database + '.bugsplat.com/post/js/';
-        const method = 'POST';
-        const body = this._formData();
-        body.append('database', this.database);
-        body.append('appName', this.application);
-        body.append('appVersion', this.version);
-        body.append('appKey', appKey);
-        body.append('user', user);
-        body.append('email', email);
-        body.append('description', description);
-        body.append('callstack', callstack);
-        additionalFormDataParams.forEach((param) => {
-            if (isFormDataParamString(param)) {
-                body.append(param.key, param.value);
-            } else {
-                body.append(param.key, param.value, param.filename);
-            }
-        });
+        const zipFiles: Record<string, Uint8Array> = {
+            'javascriptCallStack.txt': strToU8(callstack),
+        };
+        for (const attachment of options.attachments || []) {
+            const bytes = attachment.data instanceof Uint8Array
+                ? attachment.data
+                : new Uint8Array(await attachment.data.arrayBuffer());
+            zipFiles[attachment.filename] = bytes;
+        }
 
         console.log('BugSplat Error:', errorToPost);
-        console.log('BugSplat Url:', url);
 
-        const response = await globalThis.fetch(url, { method, body });
-        const json = await tryParseResponseJson(response);
+        return this._upload(zipFiles, '14', options, errorToPost);
+    }
 
-        console.log('BugSplat POST status code:', response.status);
-        console.log('BugSplat POST response body:', json);
+    /**
+     * Posts user feedback to BugSplat via presigned URL upload
+     * @param title - Feedback title, used as the stack key for grouping
+     * @param options - Additional parameters for the feedback submission
+     */
+    async postFeedback(
+        title: string,
+        options?: BugSplatOptions
+    ): Promise<BugSplatResponse> {
+        options = options || {};
 
-        if (response.status === 400) {
-            return this._createReturnValue(
-                new Error('BugSplat Error: Bad request'),
-                json,
-                errorToPost
-            );
+        const description = options.description || this._description;
+
+        const feedbackJson = JSON.stringify({ title, description });
+        const zipFiles: Record<string, Uint8Array> = {
+            'feedback.json': strToU8(feedbackJson),
+        };
+        for (const attachment of options.attachments || []) {
+            const bytes = attachment.data instanceof Uint8Array
+                ? attachment.data
+                : new Uint8Array(await attachment.data.arrayBuffer());
+            zipFiles[attachment.filename] = bytes;
         }
 
-        if (response.status === 429) {
-            return this._createReturnValue(
-                new Error(
-                    'BugSplat Error: Rate limit of one crash per second exceeded'
-                ),
-                json,
-                errorToPost
-            );
-        }
+        console.log('BugSplat Feedback:', title);
 
-        if (!response.ok) {
-            return this._createReturnValue(
-                new Error('BugSplat Error: Unknown error'),
-                json,
-                errorToPost
-            );
-        }
-
-        if (!validateResponseBody(json)) {
-            return this._createReturnValue(
-                new Error('BugSplat Error: Invalid response received'),
-                json,
-                errorToPost
-            );
-        }
-
-        return this._createReturnValue(null, json, errorToPost);
+        return this._upload(zipFiles, '36', options, title);
     }
 
     /**
@@ -141,6 +115,14 @@ export class BugSplat {
      */
     setDefaultAppKey(appKey: string): void {
         this._appKey = appKey;
+    }
+
+    /**
+     * Key/value attributes to attach to crash and feedback reports.
+     * These are searchable via BugSplat's web application.
+     */
+    setDefaultAttributes(attributes: Record<string, string>): void {
+        this._attributes = attributes;
     }
 
     /**
@@ -162,6 +144,114 @@ export class BugSplat {
      */
     setDefaultUser(user: string): void {
         this._user = user;
+    }
+
+    /**
+     * Shared presigned URL upload flow used by both post() and postFeedback().
+     */
+    private async _upload(
+        zipFiles: Record<string, Uint8Array>,
+        crashTypeId: string,
+        options: BugSplatOptions,
+        original: Error | string
+    ): Promise<BugSplatResponse> {
+        const appKey = options.appKey || this._appKey;
+        const attributes = options.attributes || this._attributes;
+        const user = options.user || this._user;
+        const email = options.email || this._email;
+        const description = options.description || this._description;
+
+        const zipData = zipSync(zipFiles);
+        const baseUrl = process.env.BUGSPLAT_BASE_URL || `https://${this.database}.bugsplat.com`;
+
+        // Step 1: Get presigned upload URL
+        const getCrashUrlParams = new URLSearchParams({
+            database: this.database,
+            appName: this.application,
+            appVersion: this.version,
+            crashPostSize: String(zipData.byteLength),
+        });
+
+        console.log('BugSplat: Getting presigned URL...');
+
+        const getCrashUrlResponse = await globalThis.fetch(
+            `${baseUrl}/api/getCrashUploadUrl?${getCrashUrlParams}`
+        );
+
+        if (!getCrashUrlResponse.ok) {
+            return this._createReturnValue(
+                new Error('BugSplat Error: Failed to get upload URL'),
+                {},
+                original
+            );
+        }
+
+        const { url: presignedUrl } = await getCrashUrlResponse.json() as { url: string };
+
+        // Step 2: Upload zip to S3
+        console.log('BugSplat: Uploading...');
+
+        const putResponse = await globalThis.fetch(presignedUrl, {
+            method: 'PUT',
+            body: new Blob([zipData.buffer as ArrayBuffer], { type: 'application/zip' }),
+            headers: { 'Content-Type': 'application/zip' },
+        });
+
+        if (!putResponse.ok) {
+            return this._createReturnValue(
+                new Error('BugSplat Error: Failed to upload to S3'),
+                {},
+                original
+            );
+        }
+
+        const etag = putResponse.headers.get('ETag')?.replace(/"/g, '') || '';
+
+        // Step 3: Commit the upload
+        console.log('BugSplat: Committing...');
+
+        const commitBody = this._formData();
+        commitBody.append('database', this.database);
+        commitBody.append('appName', this.application);
+        commitBody.append('appVersion', this.version);
+        commitBody.append('crashTypeId', crashTypeId);
+        commitBody.append('s3Key', presignedUrl);
+        commitBody.append('md5', etag);
+        commitBody.append('appKey', appKey);
+        commitBody.append('user', user);
+        commitBody.append('email', email);
+        commitBody.append('description', description);
+        if (Object.keys(attributes).length > 0) {
+            commitBody.append('attributes', JSON.stringify(attributes));
+        }
+
+        const commitResponse = await globalThis.fetch(
+            `${baseUrl}/api/commitS3CrashUpload`,
+            { method: 'POST', body: commitBody }
+        );
+
+        const json = await tryParseResponseJson(commitResponse);
+
+        console.log('BugSplat commit status code:', commitResponse.status);
+        console.log('BugSplat commit response body:', json);
+
+        if (!commitResponse.ok) {
+            return this._createReturnValue(
+                new Error('BugSplat Error: Failed to commit upload'),
+                json,
+                original
+            );
+        }
+
+        if (!validateResponseBody(json)) {
+            return this._createReturnValue(
+                new Error('BugSplat Error: Invalid response received'),
+                json,
+                original
+            );
+        }
+
+        return this._createReturnValue(null, json, original);
     }
 
     private _createReturnValue<ErrorType extends Error | null>(
