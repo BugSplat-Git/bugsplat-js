@@ -62,7 +62,6 @@ export class BugSplat {
     ): Promise<BugSplatResponse> {
         options = options || {};
 
-        const description = options.description || this._description;
         const callstack = createStandardizedCallStack(
             isError(errorToPost) ? errorToPost : new Error(errorToPost)
         );
