@@ -1,4 +1,4 @@
-import JSZip from 'jszip';
+import { zipSync, strToU8 } from 'fflate';
 import type { BugSplatFeedbackOptions, BugSplatOptions } from './bugsplat-options';
 import {
     type BugSplatResponse,
@@ -155,9 +155,7 @@ export class BugSplat {
 
         // Create feedback.json and zip it
         const feedbackJson = JSON.stringify({ title, description });
-        const zip = new JSZip();
-        zip.file('feedback.json', feedbackJson);
-        const zipData = await zip.generateAsync({ type: 'uint8array' });
+        const zipData = zipSync({ 'feedback.json': strToU8(feedbackJson) });
 
         const baseUrl = process.env.BUGSPLAT_CRASH_POST_URL?.replace(/\/post\/js\/?$/, '') || `https://${this.database}.bugsplat.com`;
 
