@@ -19,9 +19,9 @@ export interface BugSplatResponseBody {
      */
     messageId: number;
     /**
-     * URL to view the crash info
+     * URL to view the crash info (not always present in server response)
      */
-    infoUrl: string;
+    infoUrl?: string;
 }
 
 export interface BugSplatResponseType<ErrorType extends Error | null> {
@@ -47,6 +47,7 @@ const isObject = (val: unknown): val is object =>
     typeof val === 'object' && val !== null;
 const isString = (val: unknown): val is string => typeof val === 'string';
 const isNumber = (val: unknown): val is number => typeof val === 'number';
+const isUndefined = (val: unknown): val is undefined => typeof val === 'undefined';
 
 /**
  * Ensure the response body has the expected properties.
@@ -63,7 +64,7 @@ export function validateResponseBody(
         isNumber(response['crashId']),
         isNumber(response['stackKeyId']),
         isNumber(response['messageId']),
-        isString(response['infoUrl']),
+        isString(response['infoUrl']) || isUndefined(response['infoUrl']),
     ];
 
     return conditions.every(Boolean);

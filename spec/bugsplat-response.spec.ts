@@ -25,6 +25,12 @@ describe('validateResponseBody', () => {
                 messageId: 0,
                 infoUrl: 'https://app.bugsplat.com/browse/crashInfo.php?id=333',
             },
+            {
+                status: 'success',
+                crashId: 21417,
+                stackKeyId: -1,
+                messageId: -1,
+            },
         ];
 
         responseBodies.forEach((body) => {
@@ -63,12 +69,6 @@ describe('validateResponseBody', () => {
                 crashId: 9,
                 stackKeyId: 1,
                 infoUrl: 'https://app.bugsplat.com',
-            },
-            {
-                status: 'success',
-                crashId: 9,
-                stackKeyId: 1,
-                messageId: 1,
             },
             {
                 status: 'success',
