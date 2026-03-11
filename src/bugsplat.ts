@@ -67,9 +67,8 @@ export class BugSplat {
             isError(errorToPost) ? errorToPost : new Error(errorToPost)
         );
 
-        const crashJson = JSON.stringify({ callstack, description });
         const zipFiles: Record<string, Uint8Array> = {
-            'crash.json': strToU8(crashJson),
+            'javascriptCallStack.txt': strToU8(callstack),
         };
         for (const attachment of options.attachments || []) {
             const bytes = attachment.data instanceof Uint8Array
