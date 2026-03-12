@@ -55,7 +55,7 @@ describe('BugSplat', () => {
             throw new Error(result.error.message);
         }
 
-        const expectedCrashId = result.response.crashId;
+        const expectedCrashId = result.response.crash_id;
         const crashData = await client.getCrashById(database, expectedCrashId);
         expect(crashData.appName).toEqual(appName);
         expect(crashData.appVersion).toEqual(appVersion);
@@ -94,7 +94,7 @@ describe('BugSplat', () => {
             throw new Error(result.error.message);
         }
 
-        const expectedCrashId = result.response.crashId;
+        const expectedCrashId = result.response.crash_id;
         const crashData = await client.getCrashById(database, expectedCrashId);
         expect(crashData.appName).toEqual(appName);
         expect(crashData.appVersion).toEqual(appVersion);
@@ -115,7 +115,7 @@ describe('BugSplat', () => {
         if (result.error) {
             throw new Error(result.error.message);
         }
-        const expectedCrashId = result.response.crashId;
+        const expectedCrashId = result.response.crash_id;
         const crashData = await client.getCrashById(database, expectedCrashId);
 
         expect(crashData.appName).toEqual(appName);
