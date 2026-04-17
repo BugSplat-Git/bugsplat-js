@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import {
+    appendAttachment,
     BugSplat,
     createStandardizedCallStack,
     tryParseResponseJson,
@@ -367,5 +368,60 @@ describe('BugSplat', function () {
 
         expect(result.error).not.toBeNull();
         expect(result.error!.message).toEqual('BugSplat Error: Invalid response received');
+    });
+});
+
+describe('appendAttachment', () => {
+    let append: Mock;
+    let body: FormData;
+
+    beforeEach(() => {
+        append = vi.fn();
+        body = { append } as unknown as FormData;
+    });
+
+    it('appends a string as-is (no Blob wrapping)', () => {
+        appendAttachment(body, { filename: 'stack.txt', data: 'component stack' });
+        expect(append).toHaveBeenCalledWith('stack.txt', 'component stack');
+    });
+
+    it('wraps a Uint8Array in a Blob before appending', () => {
+        const bytes = new Uint8Array([0x42, 0x53]);
+        appendAttachment(body, { filename: 'data.bin', data: bytes });
+        expect(append).toHaveBeenCalledTimes(1);
+        const [filename, value, postedName] = append.mock.calls[0];
+        expect(filename).toBe('data.bin');
+        expect(value).toBeInstanceOf(Blob);
+        expect(postedName).toBe('data.bin');
+    });
+
+    it('passes a Blob through with filename', () => {
+        const blob = new Blob(['hello']);
+        appendAttachment(body, { filename: 'hello.txt', data: blob });
+        expect(append).toHaveBeenCalledWith('hello.txt', blob, 'hello.txt');
+    });
+
+    it('appends a React Native file ref in {uri, name, type} shape', () => {
+        appendAttachment(body, {
+            filename: 'screenshot.png',
+            data: { uri: 'file:///tmp/shot.png', type: 'image/png' },
+        });
+        expect(append).toHaveBeenCalledWith(
+            'screenshot.png',
+            { uri: 'file:///tmp/shot.png', type: 'image/png', name: 'screenshot.png' },
+            'screenshot.png'
+        );
+    });
+
+    it('omits type when not provided on a file ref', () => {
+        appendAttachment(body, {
+            filename: 'log.txt',
+            data: { uri: 'file:///tmp/log.txt' },
+        });
+        expect(append).toHaveBeenCalledWith(
+            'log.txt',
+            { uri: 'file:///tmp/log.txt', type: undefined, name: 'log.txt' },
+            'log.txt'
+        );
     });
 });

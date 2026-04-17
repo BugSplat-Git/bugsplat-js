@@ -1,4 +1,23 @@
 /**
+ * A reference to a file on the local filesystem.
+ *
+ * Used on React Native, where FormData streams files from disk via their URI
+ * (e.g. `file://`, `content://`, `ph://`) instead of reading them into JS memory.
+ * Most RN file libraries (`expo-image-picker`, `react-native-view-shot`,
+ * `expo-screen-capture`, etc.) already return values in this shape.
+ */
+export interface BugSplatFileRef {
+    /**
+     * The URI the runtime can read the file from.
+     */
+    uri: string;
+    /**
+     * The MIME type, e.g. `image/png`. Optional but recommended.
+     */
+    type?: string;
+}
+
+/**
  * A file attachment to include in the upload zip.
  */
 export interface BugSplatAttachment {
@@ -7,9 +26,14 @@ export interface BugSplatAttachment {
      */
     filename: string;
     /**
-     * The file contents
+     * The file contents.
+     *
+     * - `Blob` — browser `File`/`Blob` from an `<input type="file">` or `canvas.toBlob()`.
+     * - `Uint8Array` — raw binary buffer (wrapped in a `Blob` before upload).
+     * - `string` — appended as-is; use for text like a stack trace.
+     * - `BugSplatFileRef` — a `{ uri, type? }` reference for React Native file uploads.
      */
-    data: Blob | Uint8Array;
+    data: Blob | Uint8Array | string | BugSplatFileRef;
 }
 
 /**

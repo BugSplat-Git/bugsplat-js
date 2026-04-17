@@ -1,4 +1,4 @@
-import type { BugSplatOptions } from './bugsplat-options';
+import type { BugSplatAttachment, BugSplatFileRef, BugSplatOptions } from './bugsplat-options';
 import {
     type BugSplatResponse,
     type BugSplatResponseBody,
@@ -31,6 +31,45 @@ export async function tryParseResponseJson(response: {
 }
 
 const isError = (val: unknown): val is Error => Boolean((val as Error)?.stack);
+
+function isFileRef(data: unknown): data is BugSplatFileRef {
+    return typeof data === 'object' && data !== null && typeof (data as BugSplatFileRef).uri === 'string';
+}
+
+/**
+ * Append an attachment to a multipart body, branching on the runtime shape of
+ * `data` so that each environment's FormData can serialize it.
+ *
+ * - `string` — appended as a plain field (works in browsers and React Native).
+ * - `Uint8Array` — wrapped in a `Blob` for browser FormData.
+ * - `Blob` — appended with filename so the server sees it as an upload.
+ * - `BugSplatFileRef` (`{ uri, type? }`) — appended in React Native's file
+ *   shape so RN's fetch streams the file from disk.
+ */
+export function appendAttachment(body: FormData, attachment: BugSplatAttachment): void {
+    const { filename, data } = attachment;
+
+    if (typeof data === 'string') {
+        body.append(filename, data);
+        return;
+    }
+
+    if (data instanceof Uint8Array) {
+        body.append(filename, new Blob([data.buffer as ArrayBuffer]), filename);
+        return;
+    }
+
+    if (isFileRef(data)) {
+        body.append(
+            filename,
+            { uri: data.uri, type: data.type, name: filename } as unknown as Blob,
+            filename
+        );
+        return;
+    }
+
+    body.append(filename, data, filename);
+}
 
 /**
  * BugSplat crash and feedback posting client.
@@ -84,10 +123,7 @@ export class BugSplat {
             body.append('attributes', JSON.stringify(attributes));
         }
         for (const attachment of options.attachments || []) {
-            const blob = attachment.data instanceof Uint8Array
-                ? new Blob([attachment.data.buffer as ArrayBuffer])
-                : attachment.data;
-            body.append(attachment.filename, blob, attachment.filename);
+            appendAttachment(body, attachment);
         }
 
         console.log('BugSplat Error:', errorToPost);
@@ -167,10 +203,7 @@ export class BugSplat {
             body.append('attributes', JSON.stringify(attributes));
         }
         for (const attachment of options.attachments || []) {
-            const blob = attachment.data instanceof Uint8Array
-                ? new Blob([attachment.data.buffer as ArrayBuffer])
-                : attachment.data;
-            body.append(attachment.filename, blob, attachment.filename);
+            appendAttachment(body, attachment);
         }
 
         console.log('BugSplat Feedback:', title);
