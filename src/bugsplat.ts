@@ -1,4 +1,4 @@
-import type { BugSplatOptions } from './bugsplat-options';
+import type { BugSplatAttachment, BugSplatFileRef, BugSplatOptions } from './bugsplat-options';
 import {
     type BugSplatResponse,
     type BugSplatResponseBody,
@@ -31,6 +31,45 @@ export async function tryParseResponseJson(response: {
 }
 
 const isError = (val: unknown): val is Error => Boolean((val as Error)?.stack);
+
+function isFileRef(data: unknown): data is BugSplatFileRef {
+    return typeof data === 'object' && data !== null && typeof (data as BugSplatFileRef).uri === 'string';
+}
+
+/**
+ * Append an attachment to a multipart body in whatever shape the runtime's
+ * FormData expects:
+ *
+ * - `Uint8Array` → wrapped in a `Blob` so browsers send it as a file part.
+ * - `BugSplatFileRef` → React Native's `{ uri, type, name }` file-upload
+ *   shape; RN's fetch streams the file from the URI. Not supported in
+ *   browsers — pass a `Blob` there instead.
+ * - `Blob` → appended with filename so the part has a `Content-Disposition`
+ *   `filename=` header and reaches the server as an upload.
+ */
+export function appendAttachment(body: FormData, attachment: BugSplatAttachment): void {
+    const { filename, data } = attachment;
+
+    if (data instanceof Uint8Array) {
+        // Pass the view itself, not `data.buffer`, so subarray views upload only
+        // their own bytes (byteOffset..byteOffset+byteLength) rather than the
+        // entire underlying ArrayBuffer. Cast narrows the buffer type to
+        // ArrayBuffer — SharedArrayBuffer-backed views are not expected here.
+        body.append(filename, new Blob([data as Uint8Array<ArrayBuffer>]), filename);
+        return;
+    }
+
+    if (isFileRef(data)) {
+        body.append(
+            filename,
+            { uri: data.uri, type: data.type, name: filename } as unknown as Blob,
+            filename
+        );
+        return;
+    }
+
+    body.append(filename, data, filename);
+}
 
 /**
  * BugSplat crash and feedback posting client.
@@ -84,10 +123,7 @@ export class BugSplat {
             body.append('attributes', JSON.stringify(attributes));
         }
         for (const attachment of options.attachments || []) {
-            const blob = attachment.data instanceof Uint8Array
-                ? new Blob([attachment.data.buffer as ArrayBuffer])
-                : attachment.data;
-            body.append(attachment.filename, blob, attachment.filename);
+            appendAttachment(body, attachment);
         }
 
         console.log('BugSplat Error:', errorToPost);
@@ -167,10 +203,7 @@ export class BugSplat {
             body.append('attributes', JSON.stringify(attributes));
         }
         for (const attachment of options.attachments || []) {
-            const blob = attachment.data instanceof Uint8Array
-                ? new Blob([attachment.data.buffer as ArrayBuffer])
-                : attachment.data;
-            body.append(attachment.filename, blob, attachment.filename);
+            appendAttachment(body, attachment);
         }
 
         console.log('BugSplat Feedback:', title);
