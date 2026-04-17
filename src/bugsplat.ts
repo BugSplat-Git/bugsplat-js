@@ -51,7 +51,11 @@ export function appendAttachment(body: FormData, attachment: BugSplatAttachment)
     const { filename, data } = attachment;
 
     if (data instanceof Uint8Array) {
-        body.append(filename, new Blob([data.buffer as ArrayBuffer]), filename);
+        // Pass the view itself, not `data.buffer`, so subarray views upload only
+        // their own bytes (byteOffset..byteOffset+byteLength) rather than the
+        // entire underlying ArrayBuffer. Cast narrows the buffer type to
+        // ArrayBuffer — SharedArrayBuffer-backed views are not expected here.
+        body.append(filename, new Blob([data as Uint8Array<ArrayBuffer>]), filename);
         return;
     }
 

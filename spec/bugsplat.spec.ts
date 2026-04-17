@@ -390,6 +390,18 @@ describe('appendAttachment', () => {
         expect(postedName).toBe('data.bin');
     });
 
+    it('uploads only the bytes covered by a Uint8Array view, not the whole backing buffer', async () => {
+        // Build a Uint8Array that is a subarray view into a larger buffer.
+        const underlying = new Uint8Array([0x00, 0x00, 0x42, 0x53, 0x00, 0x00]);
+        const view = underlying.subarray(2, 4); // just [0x42, 0x53]
+        appendAttachment(body, { filename: 'data.bin', data: view });
+        const [, value] = append.mock.calls[0];
+        expect(value).toBeInstanceOf(Blob);
+        expect((value as Blob).size).toBe(2);
+        const bytes = new Uint8Array(await (value as Blob).arrayBuffer());
+        expect(Array.from(bytes)).toEqual([0x42, 0x53]);
+    });
+
     it('passes a Blob through with filename', () => {
         const blob = new Blob(['hello']);
         appendAttachment(body, { filename: 'hello.txt', data: blob });
@@ -408,7 +420,7 @@ describe('appendAttachment', () => {
         );
     });
 
-    it('omits type when not provided on a file ref', () => {
+    it('handles a file ref with no type', () => {
         appendAttachment(body, {
             filename: 'log.txt',
             data: { uri: 'file:///tmp/log.txt' },
