@@ -30,10 +30,9 @@ export interface BugSplatAttachment {
      *
      * - `Blob` — browser `File`/`Blob` from an `<input type="file">` or `canvas.toBlob()`.
      * - `Uint8Array` — raw binary buffer (wrapped in a `Blob` before upload).
-     * - `string` — appended as-is; use for text like a stack trace.
-     * - `BugSplatFileRef` — a `{ uri, type? }` reference for React Native file uploads.
+     * - `BugSplatFileRef` — `{ uri, type? }` reference for React Native file uploads.
      */
-    data: Blob | Uint8Array | string | BugSplatFileRef;
+    data: Blob | Uint8Array | BugSplatFileRef;
 }
 
 /**

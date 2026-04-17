@@ -36,56 +36,19 @@ function isFileRef(data: unknown): data is BugSplatFileRef {
     return typeof data === 'object' && data !== null && typeof (data as BugSplatFileRef).uri === 'string';
 }
 
-function isReactNative(): boolean {
-    return typeof navigator !== 'undefined' &&
-        (navigator as { product?: string }).product === 'ReactNative';
-}
-
-function utf8ToBase64(text: string): string {
-    if (typeof Buffer !== 'undefined') {
-        return Buffer.from(text, 'utf-8').toString('base64');
-    }
-    // Browser-safe UTF-8 → base64
-    return btoa(unescape(encodeURIComponent(text)));
-}
-
 /**
- * Append an attachment to a multipart body, branching on the runtime shape of
- * `data` so that each environment's FormData serializes it as a real file part
- * (with a `filename` in the `Content-Disposition` header) rather than a plain
- * form field.
+ * Append an attachment to a multipart body in whatever shape the runtime's
+ * FormData expects:
  *
- * - `string` — wrapped as a `text/plain` file part. On web this is a `Blob`;
- *   on React Native (where FormData can't serialize browser `Blob` objects) it
- *   becomes a base64 `data:` URI in RN's `{ uri, type, name }` shape.
- * - `Uint8Array` — wrapped in a `Blob` for browser FormData.
- * - `Blob` — appended with filename so the server sees it as an upload.
- * - `BugSplatFileRef` (`{ uri, type? }`) — RN's file-upload shape, streamed
- *   from disk by RN's fetch.
+ * - `Uint8Array` → wrapped in a `Blob` so browsers send it as a file part.
+ * - `BugSplatFileRef` → React Native's `{ uri, type, name }` file-upload
+ *   shape; RN's fetch streams the file from the URI. Not supported in
+ *   browsers — pass a `Blob` there instead.
+ * - `Blob` → appended with filename so the part has a `Content-Disposition`
+ *   `filename=` header and reaches the server as an upload.
  */
 export function appendAttachment(body: FormData, attachment: BugSplatAttachment): void {
     const { filename, data } = attachment;
-
-    if (typeof data === 'string') {
-        if (isReactNative()) {
-            body.append(
-                filename,
-                {
-                    uri: `data:text/plain;base64,${utf8ToBase64(data)}`,
-                    type: 'text/plain',
-                    name: filename,
-                } as unknown as Blob,
-                filename
-            );
-        } else {
-            body.append(
-                filename,
-                new Blob([data], { type: 'text/plain' }),
-                filename
-            );
-        }
-        return;
-    }
 
     if (data instanceof Uint8Array) {
         body.append(filename, new Blob([data.buffer as ArrayBuffer]), filename);

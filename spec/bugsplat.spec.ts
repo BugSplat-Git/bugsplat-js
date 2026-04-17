@@ -380,41 +380,6 @@ describe('appendAttachment', () => {
         body = { append } as unknown as FormData;
     });
 
-    it('wraps a string in a text/plain Blob so it uploads as a file part (browser)', () => {
-        appendAttachment(body, { filename: 'stack.txt', data: 'component stack' });
-        expect(append).toHaveBeenCalledTimes(1);
-        const [fieldName, value, postedName] = append.mock.calls[0];
-        expect(fieldName).toBe('stack.txt');
-        expect(value).toBeInstanceOf(Blob);
-        expect((value as Blob).type).toBe('text/plain');
-        expect(postedName).toBe('stack.txt');
-    });
-
-    it('encodes a string as a data URI file ref on React Native', () => {
-        const originalNav = globalThis.navigator;
-        Object.defineProperty(globalThis, 'navigator', {
-            value: { product: 'ReactNative' },
-            configurable: true,
-        });
-        try {
-            appendAttachment(body, { filename: 'stack.txt', data: 'hello' });
-            expect(append).toHaveBeenCalledTimes(1);
-            const [fieldName, value, postedName] = append.mock.calls[0];
-            expect(fieldName).toBe('stack.txt');
-            expect(value).toEqual({
-                uri: 'data:text/plain;base64,aGVsbG8=',
-                type: 'text/plain',
-                name: 'stack.txt',
-            });
-            expect(postedName).toBe('stack.txt');
-        } finally {
-            Object.defineProperty(globalThis, 'navigator', {
-                value: originalNav,
-                configurable: true,
-            });
-        }
-    });
-
     it('wraps a Uint8Array in a Blob before appending', () => {
         const bytes = new Uint8Array([0x42, 0x53]);
         appendAttachment(body, { filename: 'data.bin', data: bytes });
