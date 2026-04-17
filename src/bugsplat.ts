@@ -36,21 +36,54 @@ function isFileRef(data: unknown): data is BugSplatFileRef {
     return typeof data === 'object' && data !== null && typeof (data as BugSplatFileRef).uri === 'string';
 }
 
+function isReactNative(): boolean {
+    return typeof navigator !== 'undefined' &&
+        (navigator as { product?: string }).product === 'ReactNative';
+}
+
+function utf8ToBase64(text: string): string {
+    if (typeof Buffer !== 'undefined') {
+        return Buffer.from(text, 'utf-8').toString('base64');
+    }
+    // Browser-safe UTF-8 → base64
+    return btoa(unescape(encodeURIComponent(text)));
+}
+
 /**
  * Append an attachment to a multipart body, branching on the runtime shape of
- * `data` so that each environment's FormData can serialize it.
+ * `data` so that each environment's FormData serializes it as a real file part
+ * (with a `filename` in the `Content-Disposition` header) rather than a plain
+ * form field.
  *
- * - `string` — appended as a plain field (works in browsers and React Native).
+ * - `string` — wrapped as a `text/plain` file part. On web this is a `Blob`;
+ *   on React Native (where FormData can't serialize browser `Blob` objects) it
+ *   becomes a base64 `data:` URI in RN's `{ uri, type, name }` shape.
  * - `Uint8Array` — wrapped in a `Blob` for browser FormData.
  * - `Blob` — appended with filename so the server sees it as an upload.
- * - `BugSplatFileRef` (`{ uri, type? }`) — appended in React Native's file
- *   shape so RN's fetch streams the file from disk.
+ * - `BugSplatFileRef` (`{ uri, type? }`) — RN's file-upload shape, streamed
+ *   from disk by RN's fetch.
  */
 export function appendAttachment(body: FormData, attachment: BugSplatAttachment): void {
     const { filename, data } = attachment;
 
     if (typeof data === 'string') {
-        body.append(filename, data);
+        if (isReactNative()) {
+            body.append(
+                filename,
+                {
+                    uri: `data:text/plain;base64,${utf8ToBase64(data)}`,
+                    type: 'text/plain',
+                    name: filename,
+                } as unknown as Blob,
+                filename
+            );
+        } else {
+            body.append(
+                filename,
+                new Blob([data], { type: 'text/plain' }),
+                filename
+            );
+        }
         return;
     }
 
