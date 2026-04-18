@@ -107,12 +107,22 @@ describe('BugSplat', function () {
     describe('post', () => {
         it('should use injectable _fetch instead of globalThis.fetch', async () => {
             const customFetch = vi.fn().mockResolvedValue(fakeSuccessResponseBody);
+            const globalFetchSpy = vi.fn().mockResolvedValue(fakeSuccessResponseBody);
+            vi.stubGlobal('fetch', globalFetchSpy);
             // @ts-expect-error -- accessing private field for test
             bugsplat._fetch = customFetch;
 
             await bugsplat.post(new Error('BugSplat!'));
 
             expect(customFetch).toHaveBeenCalledOnce();
+            expect(customFetch).toHaveBeenCalledWith(
+                `https://${database}.bugsplat.com/post/js/`,
+                expect.objectContaining({
+                    method: 'POST',
+                    body: fakeFormData,
+                })
+            );
+            expect(globalFetchSpy).not.toHaveBeenCalled();
         });
 
         it('should call fetch url containing database', async () => {
