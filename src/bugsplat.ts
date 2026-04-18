@@ -76,6 +76,7 @@ export function appendAttachment(body: FormData, attachment: BugSplatAttachment)
  */
 export class BugSplat {
     private _formData = () => new FormData();
+    private _fetch: typeof globalThis.fetch = globalThis.fetch.bind(globalThis);
 
     private _appKey = '';
     private _attributes: Record<string, string> = {};
@@ -129,7 +130,7 @@ export class BugSplat {
         console.log('BugSplat Error:', errorToPost);
         console.log('BugSplat Url:', url);
 
-        const response = await globalThis.fetch(url, { method: 'POST', body });
+        const response = await this._fetch(url, { method: 'POST', body });
         const json = await tryParseResponseJson(response);
 
         console.log('BugSplat POST status code:', response.status);
@@ -208,7 +209,7 @@ export class BugSplat {
 
         console.log('BugSplat Feedback:', title);
 
-        const response = await globalThis.fetch(baseUrl, { method: 'POST', body });
+        const response = await this._fetch(baseUrl, { method: 'POST', body });
         const json = await tryParseResponseJson(response);
 
         if (!response.ok) {

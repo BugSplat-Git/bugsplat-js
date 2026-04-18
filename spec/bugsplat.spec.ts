@@ -99,10 +99,22 @@ describe('BugSplat', function () {
         bugsplat = new BugSplat(database, appName, appVersion);
         // @ts-expect-error -- accessing private field for test mocking
         bugsplat._formData = () => fakeFormData;
-        fetchSpy = vi.spyOn(globalThis, 'fetch') as unknown as Mock;
+        fetchSpy = vi.fn();
+        // @ts-expect-error -- accessing private field for test mocking
+        bugsplat._fetch = fetchSpy;
     });
 
     describe('post', () => {
+        it('should use injectable _fetch instead of globalThis.fetch', async () => {
+            const customFetch = vi.fn().mockResolvedValue(fakeSuccessResponseBody);
+            // @ts-expect-error -- accessing private field for test
+            bugsplat._fetch = customFetch;
+
+            await bugsplat.post(new Error('BugSplat!'));
+
+            expect(customFetch).toHaveBeenCalledOnce();
+        });
+
         it('should call fetch url containing database', async () => {
             fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
