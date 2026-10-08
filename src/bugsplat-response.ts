@@ -39,6 +39,11 @@ export interface BugSplatResponseType<ErrorType extends Error | null> {
      * The original error or title posted to BugSplat.
      */
     original: Error | string;
+    /**
+     * `true` when a `beforePost` hook cancelled the report. No request was
+     * made; `error` describes the cancellation and `response` is `null`.
+     */
+    skipped?: boolean;
 }
 
 export type BugSplatResponse =
