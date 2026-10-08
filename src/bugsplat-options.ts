@@ -68,3 +68,33 @@ export interface BugSplatOptions {
      */
     user?: string;
 }
+
+/**
+ * A crash report as `post()` will send it, after per-call options have been
+ * merged with the instance defaults. Passed to a `BeforePostHook`.
+ */
+export interface BugSplatReport extends BugSplatOptions {
+    /**
+     * The error being reported. Useful for `instanceof` checks or reading
+     * `cause`; the text that is uploaded is `callstack`.
+     */
+    error: Error;
+    /**
+     * The stack trace that will be uploaded, derived from `error`.
+     */
+    callstack: string;
+}
+
+/**
+ * Inspects, modifies, or cancels a report right before `post()` sends it.
+ *
+ * Return the report (mutated in place or a new object) to send it, or
+ * `null`/`undefined` to cancel the post. May return a promise.
+ */
+export type BeforePostHook = (
+    report: BugSplatReport
+) =>
+    | BugSplatReport
+    | null
+    | undefined
+    | Promise<BugSplatReport | null | undefined>;

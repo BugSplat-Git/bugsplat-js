@@ -101,10 +101,42 @@ bugsplat.setDefaultAppKey(appKey); // Additional metadata that can be queried vi
 bugsplat.setDefaultUser(user); // The name or id of your user
 bugsplat.setDefaultEmail(email); // The email of your user
 bugsplat.setDefaultDescription(description); // Additional info about your crash that gets reset after every post
+bugsplat.setBeforePost(hook); // Inspect, modify, or cancel a report right before it is sent (see beforePost below)
 async bugsplat.post(error, options); // Posts an arbitrary Error object to BugSplat
 // If the values options.appKey, options.user, options.email, options.description are set the corresponding default values will be overwritten
-// Returns a promise that resolves with properties: error (if there was an error posting to BugSplat), response (the response from the BugSplat crash post API), and original (the error passed by bugsplat.post)
+// Returns a promise that resolves with properties: error (if there was an error posting to BugSplat), response (the response from the BugSplat crash post API), original (the error passed by bugsplat.post), and skipped (true if a beforePost hook cancelled the report)
 ```
+
+### beforePost
+
+`setBeforePost` registers a hook that runs right before each `post()` request is sent. The hook receives the report with your defaults and per-call options already merged (`error`, `callstack`, `appKey`, `user`, `email`, `description`, `attributes`, `attachments`). Return the report, mutated in place or as a new object, to send it. The hook may be async. Pass `null` to remove it.
+
+Use it to redact data before it leaves the app. For example, drizzle-orm's `DrizzleQueryError` message is `Failed query: <sql>\nparams: <values>`, and the params can contain end-user content:
+
+```ts
+bugsplat.setBeforePost((report) => {
+  report.callstack = report.callstack.replace(/params: .*/g, 'params: [redacted]');
+  return report;
+});
+```
+
+Return `null` to drop a report entirely. No request is made and the promise resolves with `skipped: true`:
+
+```ts
+bugsplat.setBeforePost((report) => {
+  if (report.error.name === 'AbortError') {
+    return null;
+  }
+  return report;
+});
+
+const result = await bugsplat.post(error);
+if (result.skipped) {
+  // Cancelled by the hook. result.error explains why and result.response is null.
+}
+```
+
+If the hook throws, the error is logged with `console.error` and the report is sent unmodified.
 
 ### User Feedback
 
