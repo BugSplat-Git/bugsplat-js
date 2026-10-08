@@ -106,6 +106,21 @@ async bugsplat.post(error, options); // Posts an arbitrary Error object to BugSp
 // Returns a promise that resolves with properties: error (if there was an error posting to BugSplat), response (the response from the BugSplat crash post API), and original (the error passed by bugsplat.post)
 ```
 
+### Error chains
+
+When the error you post has a `cause` (or is an `AggregateError` with `errors`), bugsplat-js walks the chain automatically, up to 5 linked errors deep, and posts each one alongside the callstack. Linked errors appear in BugSplat's callstack as `Caused by:` rows, with each error's own properties (for example a database driver's `code` or `constraint`) shown as locals. There's nothing to configure.
+
+```ts
+try {
+    await db.insert(users).values(user);
+} catch (error) {
+    // The driver error on `error.cause` (SQLSTATE, constraint name, ...) is captured too
+    await bugsplat.post(error);
+}
+```
+
+If you need the chain for your own tooling, `createExceptionChain(error)` returns the same entries `post()` sends.
+
 ### User Feedback
 
 You can also submit non-crashing user feedback (e.g. bug reports, feature requests) using `postFeedback`. Feedback reports appear in BugSplat with the "User Feedback" crash type, grouped by `title`.

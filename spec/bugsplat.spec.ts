@@ -201,6 +201,85 @@ describe('BugSplat', function () {
                 )
             );
         });
+
+        it('should append the exception chain as JSON and leave callstack unchanged', async () => {
+            const cause = Object.assign(new Error('duplicate key value violates unique constraint'), {
+                code: '23505',
+                constraint_name: 'users_email_key',
+            });
+            const expectedError = new Error('Failed query: insert into users', { cause });
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            await bugsplat.post(expectedError);
+
+            expect(appendSpy).toHaveBeenCalledWith('callstack', expectedError.stack);
+            expect(appendSpy).toHaveBeenCalledWith('exceptions', expect.any(String));
+            const [, json] = appendSpy.mock.calls.find(([name]) => name === 'exceptions')!;
+            expect(JSON.parse(json)).toEqual([
+                {
+                    id: 0,
+                    parentId: null,
+                    source: null,
+                    type: 'Error',
+                    message: 'Failed query: insert into users',
+                    stack: expectedError.stack,
+                    properties: {},
+                },
+                {
+                    id: 1,
+                    parentId: 0,
+                    source: 'cause',
+                    type: 'Error',
+                    message: 'duplicate key value violates unique constraint',
+                    stack: cause.stack,
+                    properties: { code: '23505', constraint_name: 'users_email_key' },
+                },
+            ]);
+        });
+
+        it('should build exception entry 0 from the Error created for a string', async () => {
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            await bugsplat.post('Error without a stack!');
+
+            const [, json] = appendSpy.mock.calls.find(([name]) => name === 'exceptions')!;
+            const exceptions = JSON.parse(json);
+            expect(exceptions).toHaveLength(1);
+            expect(exceptions[0]).toMatchObject({
+                id: 0,
+                parentId: null,
+                source: null,
+                type: 'Error',
+                message: 'Error without a stack!',
+                properties: {},
+            });
+            expect(exceptions[0].stack).toMatch(/at BugSplat\./);
+        });
+
+        it('should still post when an error property getter throws', async () => {
+            const error = new Error('BugSplat!');
+            Object.defineProperty(error, 'bad', {
+                enumerable: true,
+                get() {
+                    throw new Error('nope');
+                },
+            });
+            Object.defineProperty(error, 'cause', {
+                get() {
+                    throw new Error('nope');
+                },
+            });
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            const result = await bugsplat.post(error);
+
+            expect(result.error).toBeNull();
+            expect(fetchSpy).toHaveBeenCalledOnce();
+            const [, json] = appendSpy.mock.calls.find(([name]) => name === 'exceptions')!;
+            expect(JSON.parse(json)).toEqual([
+                expect.objectContaining({ id: 0, message: 'BugSplat!', properties: {} }),
+            ]);
+        });
     });
 
     describe('postFeedback', () => {
