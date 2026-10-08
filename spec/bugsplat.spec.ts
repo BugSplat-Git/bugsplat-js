@@ -203,6 +203,187 @@ describe('BugSplat', function () {
         });
     });
 
+    describe('beforePost', () => {
+        it('should pass the merged report (defaults + options) to the hook', async () => {
+            const error = new Error('BugSplat!');
+            const attachments = [{ filename: 'a.txt', data: new Blob(['a']) }];
+            const hook = vi.fn((report) => report);
+            bugsplat.setDefaultAppKey('defaultAppKey');
+            bugsplat.setDefaultUser('defaultUser');
+            bugsplat.setDefaultEmail('default@email.com');
+            bugsplat.setDefaultDescription('defaultDescription');
+            bugsplat.setDefaultAttributes({ env: 'production' });
+            bugsplat.setBeforePost(hook);
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            await bugsplat.post(error, { user: 'overridenUser', attachments });
+
+            expect(hook).toHaveBeenCalledOnce();
+            expect(hook).toHaveBeenCalledWith({
+                error,
+                callstack: error.stack,
+                appKey: 'defaultAppKey',
+                user: 'overridenUser',
+                email: 'default@email.com',
+                description: 'defaultDescription',
+                attributes: { env: 'production' },
+                attachments,
+            });
+        });
+
+        it('should post the report returned by the hook', async () => {
+            const blob = new Blob(['hooked']);
+            bugsplat.setBeforePost((report) => ({
+                ...report,
+                callstack: report.callstack.replace(/params: .*/g, 'params: [redacted]'),
+                description: 'hooked description',
+                attributes: { redacted: 'true' },
+                attachments: [{ filename: 'hooked.txt', data: blob }],
+            }));
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            await bugsplat.post(
+                new Error('Failed query: select 1\nparams: ["jane@example.com"]'),
+                { description: 'original description' }
+            );
+
+            expect(fetchSpy).toHaveBeenCalledOnce();
+            expect(appendSpy).toHaveBeenCalledWith(
+                'callstack',
+                expect.stringContaining('params: [redacted]')
+            );
+            expect(appendSpy).not.toHaveBeenCalledWith(
+                'callstack',
+                expect.stringContaining('jane@example.com')
+            );
+            expect(appendSpy).toHaveBeenCalledWith('description', 'hooked description');
+            expect(appendSpy).toHaveBeenCalledWith(
+                'attributes',
+                JSON.stringify({ redacted: 'true' })
+            );
+            expect(appendSpy).toHaveBeenCalledWith('hooked.txt', blob, 'hooked.txt');
+        });
+
+        it('should post a report mutated in place without touching default attributes', async () => {
+            const defaults = { env: 'production' };
+            bugsplat.setDefaultAttributes(defaults);
+            bugsplat.setBeforePost((report) => {
+                report.attributes!.extra = 'x';
+                return report;
+            });
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            await bugsplat.post(new Error('BugSplat!'));
+
+            expect(appendSpy).toHaveBeenCalledWith(
+                'attributes',
+                JSON.stringify({ env: 'production', extra: 'x' })
+            );
+            expect(defaults).toEqual({ env: 'production' });
+        });
+
+        it('should skip fetch and resolve with skipped when the hook returns null', async () => {
+            const errorToPost = new Error('BugSplat!');
+            bugsplat.setBeforePost(() => null);
+
+            const result = await bugsplat.post(errorToPost);
+
+            expect(fetchSpy).not.toHaveBeenCalled();
+            expect(appendSpy).not.toHaveBeenCalled();
+            expect(result.skipped).toBe(true);
+            expect(result.error?.message).toEqual(
+                'BugSplat Error: Report skipped by beforePost hook'
+            );
+            expect(result.response).toBeNull();
+            expect(result.original).toBe(errorToPost);
+        });
+
+        it('should treat undefined from the hook as a skip', async () => {
+            bugsplat.setBeforePost(() => undefined);
+
+            const result = await bugsplat.post(new Error('BugSplat!'));
+
+            expect(fetchSpy).not.toHaveBeenCalled();
+            expect(result.skipped).toBe(true);
+        });
+
+        it('should await an async hook', async () => {
+            bugsplat.setBeforePost(async (report) => {
+                await new Promise((resolve) => setTimeout(resolve, 1));
+                return { ...report, description: 'async description' };
+            });
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            await bugsplat.post(new Error('BugSplat!'));
+
+            expect(appendSpy).toHaveBeenCalledWith('description', 'async description');
+        });
+
+        it('should skip when an async hook resolves null', async () => {
+            bugsplat.setBeforePost(async () => null);
+
+            const result = await bugsplat.post(new Error('BugSplat!'));
+
+            expect(fetchSpy).not.toHaveBeenCalled();
+            expect(result.skipped).toBe(true);
+        });
+
+        it('should post the original report if the hook throws', async () => {
+            const consoleErrorSpy = vi
+                .spyOn(console, 'error')
+                .mockImplementation(() => {});
+            const hookError = new Error('hook bug');
+            bugsplat.setBeforePost(() => {
+                throw hookError;
+            });
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            const result = await bugsplat.post(new Error('BugSplat!'), {
+                description: 'original description',
+            });
+
+            expect(fetchSpy).toHaveBeenCalledOnce();
+            expect(appendSpy).toHaveBeenCalledWith('description', 'original description');
+            expect(result.error).toBeNull();
+            expect(result.skipped).toBeUndefined();
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                expect.stringContaining('beforePost'),
+                hookError
+            );
+            consoleErrorSpy.mockRestore();
+        });
+
+        it('should post the original report if an async hook rejects', async () => {
+            const consoleErrorSpy = vi
+                .spyOn(console, 'error')
+                .mockImplementation(() => {});
+            bugsplat.setBeforePost(async () => {
+                throw new Error('async hook bug');
+            });
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            const result = await bugsplat.post(new Error('BugSplat!'));
+
+            expect(fetchSpy).toHaveBeenCalledOnce();
+            expect(result.error).toBeNull();
+            consoleErrorSpy.mockRestore();
+        });
+
+        it('should clear the hook when setBeforePost is called with null', async () => {
+            const hook = vi.fn(() => null);
+            bugsplat.setBeforePost(hook);
+            bugsplat.setBeforePost(null);
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            const result = await bugsplat.post(new Error('BugSplat!'));
+
+            expect(hook).not.toHaveBeenCalled();
+            expect(fetchSpy).toHaveBeenCalledOnce();
+            expect(result.error).toBeNull();
+            expect(result.skipped).toBeUndefined();
+        });
+    });
+
     describe('postFeedback', () => {
         it('should POST to /api/post/feedback', async () => {
             fetchSpy.mockClear();
