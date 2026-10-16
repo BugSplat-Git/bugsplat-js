@@ -89,8 +89,29 @@ const SKIP = Symbol('skip');
 const encoder =
     typeof TextEncoder !== 'undefined' ? new TextEncoder() : undefined;
 
+/**
+ * UTF-8 byte length of `text`. Without `TextEncoder`, counts code points
+ * directly; a lone surrogate counts 3 bytes, the size of the U+FFFD that
+ * `TextEncoder` emits for it.
+ */
 function byteLength(text: string): number {
-    return encoder ? encoder.encode(text).length : text.length;
+    if (encoder) {
+        return encoder.encode(text).length;
+    }
+    let bytes = 0;
+    for (const character of text) {
+        const codePoint = character.codePointAt(0)!;
+        if (codePoint <= 0x7f) {
+            bytes += 1;
+        } else if (codePoint <= 0x7ff) {
+            bytes += 2;
+        } else if (codePoint <= 0xffff) {
+            bytes += 3;
+        } else {
+            bytes += 4;
+        }
+    }
+    return bytes;
 }
 
 function safeRead(target: object, key: string): unknown {

@@ -108,7 +108,7 @@ async bugsplat.post(error, options); // Posts an arbitrary Error object to BugSp
 
 ### Error chains
 
-When the error you post has a `cause` (or is an `AggregateError` with `errors`), bugsplat-js walks the chain automatically, up to 5 linked errors deep, and posts each one alongside the callstack. Linked errors appear in BugSplat's callstack as `Caused by:` rows, with each error's own properties (for example a database driver's `code` or `constraint`) shown as locals. There's nothing to configure.
+When the error you post has a `cause` (or is an `AggregateError` with `errors`), bugsplat-js walks the chain automatically and posts it alongside the callstack: the posted error plus up to 5 linked entries in total, in discovery order (`cause` before `errors[]`, depth-first). Linked errors appear in BugSplat's callstack as `Caused by:` rows, with each error's own properties (for example a database driver's `code` or `constraint`) shown as locals. There's nothing to configure.
 
 ```ts
 try {

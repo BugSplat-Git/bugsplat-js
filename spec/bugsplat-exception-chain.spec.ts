@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
     createExceptionChain,
     MAX_EXCEPTIONS_BYTES,
@@ -653,6 +653,89 @@ describe('createExceptionChain', () => {
             expect(chain[0].properties).toEqual({ status: 502 });
             expect(chain[1].properties).toEqual({ code: 'ECONNRESET' });
             expect(chain[0].stack).toBe(error.stack);
+        });
+    });
+
+    describe('byte caps without TextEncoder', () => {
+        type ChainModule = typeof import('../src/bugsplat-exception-chain');
+
+        // `encoder` is resolved when the module loads, so the fallback needs a
+        // fresh module instance evaluated while TextEncoder is absent.
+        const loadWithoutTextEncoder = async (): Promise<ChainModule> => {
+            const globals = globalThis as { TextEncoder?: unknown };
+            const original = globals.TextEncoder;
+            globals.TextEncoder = undefined;
+            try {
+                vi.resetModules();
+                const fallback: ChainModule =
+                    await import('../src/bugsplat-exception-chain');
+                expect(fallback.createExceptionChain).not.toBe(
+                    createExceptionChain,
+                );
+                return fallback;
+            } finally {
+                globals.TextEncoder = original;
+                vi.resetModules();
+            }
+        };
+
+        it('measures CJK strings in UTF-8 bytes for the per-entry budget', async () => {
+            const fallback = await loadWithoutTextEncoder();
+            // 1024 UTF-16 code units, 3072 UTF-8 bytes: three of them fit the
+            // budget as code units but not as bytes.
+            const cjk = '中'.repeat(MAX_PROPERTY_STRING_LENGTH);
+            const error = Object.assign(new Error('x'), {
+                a: cjk,
+                b: cjk,
+                c: cjk,
+            });
+
+            const properties =
+                fallback.createExceptionChain(error)[0].properties;
+
+            expect(byteLength(properties)).toBeLessThanOrEqual(
+                MAX_PROPERTIES_BYTES,
+            );
+            expect(Object.keys(properties)).toHaveLength(2);
+            expect(properties).toEqual(
+                createExceptionChain(error)[0].properties,
+            );
+        });
+
+        it('measures CJK stacks in UTF-8 bytes for the total budget', async () => {
+            const fallback = await loadWithoutTextEncoder();
+            const error = new Error('x');
+            // 30k UTF-16 code units, 90 KB of UTF-8.
+            error.stack = '中'.repeat(30_000);
+
+            const chain = fallback.createExceptionChain(error);
+
+            expect(byteLength(chain)).toBeLessThanOrEqual(MAX_EXCEPTIONS_BYTES);
+            expect(chain[0].stack!.length).toBeLessThan(30_000);
+            expect(chain).toEqual(createExceptionChain(error));
+        });
+
+        it('agrees with TextEncoder on mixed ASCII, CJK and emoji text', async () => {
+            const fallback = await loadWithoutTextEncoder();
+            // 4 UTF-16 code units and 8 UTF-8 bytes per repeat; five 1024-unit
+            // strings fit the budget as code units but need two drops as bytes.
+            const mixed = 'a中😀'.repeat(MAX_PROPERTY_STRING_LENGTH / 4);
+            const error = Object.assign(new Error('x'), {
+                a: mixed,
+                b: mixed,
+                c: mixed,
+                d: mixed,
+                e: mixed,
+            });
+
+            const expected = createExceptionChain(error);
+            const actual = fallback.createExceptionChain(error);
+
+            expect(actual).toEqual(expected);
+            expect(Object.keys(actual[0].properties)).toHaveLength(3);
+            expect(byteLength(actual[0].properties)).toBeLessThanOrEqual(
+                MAX_PROPERTIES_BYTES,
+            );
         });
     });
 
