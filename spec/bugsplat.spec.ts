@@ -2,36 +2,8 @@ import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import {
     appendAttachment,
     BugSplat,
-    createStandardizedCallStack,
     tryParseResponseJson,
 } from '../src/bugsplat';
-
-describe('createStandardizedCallStack', () => {
-    it('should always return a call stack containing "Error:"', () => {
-        const errors = [
-            new Error('sample error'),
-            new TypeError('sample type error'),
-            new SyntaxError('sample syntax error'),
-            {
-                message: 'fake error message',
-                stack: 'fake stack',
-            } as Error,
-            {
-                message: 'fake error message',
-                stack: 'Err: bodyoftext',
-            } as Error,
-            {
-                message: 'Error: message',
-                stack: 'stacktext',
-            } as Error,
-        ];
-
-        errors.forEach((error) => {
-            const stack = createStandardizedCallStack(error);
-            expect(stack).toContain('Error:');
-        });
-    });
-});
 
 describe('tryParseResponseJson', () => {
     const values: unknown[] = [
@@ -167,42 +139,32 @@ describe('BugSplat', function () {
             expect(appendSpy).toHaveBeenCalledWith('database', database);
             expect(appendSpy).toHaveBeenCalledWith('appName', appName);
             expect(appendSpy).toHaveBeenCalledWith('appVersion', appVersion);
-            expect(appendSpy).toHaveBeenCalledWith('callstack', expect.stringContaining('Error:'));
+            expect(appendSpy).not.toHaveBeenCalledWith('callstack', expect.anything());
             expect(appendSpy).toHaveBeenCalledWith('appKey', appKey);
             expect(appendSpy).toHaveBeenCalledWith('user', user);
             expect(appendSpy).toHaveBeenCalledWith('email', email);
             expect(appendSpy).toHaveBeenCalledWith('description', description);
         });
 
-        it('should append callstack to post body', async () => {
+        it('should not append a callstack field', async () => {
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+
+            await bugsplat.post(new Error('BugSplat!'), {});
+
+            expect(appendSpy.mock.calls.map(([name]) => name)).not.toContain('callstack');
+        });
+
+        it('should carry the posted error stack in exception entry 0', async () => {
             const expectedError = new Error('BugSplat!');
             fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
 
             await bugsplat.post(expectedError, {});
 
-            expect(appendSpy).toHaveBeenCalledWith(
-                'callstack',
-                expectedError.stack
-            );
+            const [, json] = appendSpy.mock.calls.find(([name]) => name === 'exceptions')!;
+            expect(JSON.parse(json).exceptions[0].stack).toBe(expectedError.stack);
         });
 
-        it('should create a stack if none was provided', async () => {
-            const expectedError = 'Error without a stack!';
-            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
-
-            await bugsplat.post(expectedError, {});
-
-            expect(appendSpy).toHaveBeenCalledWith(
-                'callstack',
-                expect.stringMatching(
-                    new RegExp(
-                        `Error: ${expectedError}.*\n.*at BugSplat\\.`
-                    )
-                )
-            );
-        });
-
-        it('should append the exception chain as JSON and leave callstack unchanged', async () => {
+        it('should append the exception chain as JSON', async () => {
             const cause = Object.assign(new Error('duplicate key value violates unique constraint'), {
                 code: '23505',
                 constraint_name: 'users_email_key',
@@ -212,10 +174,9 @@ describe('BugSplat', function () {
 
             await bugsplat.post(expectedError);
 
-            expect(appendSpy).toHaveBeenCalledWith('callstack', expectedError.stack);
             expect(appendSpy).toHaveBeenCalledWith('exceptions', expect.any(String));
             const [, json] = appendSpy.mock.calls.find(([name]) => name === 'exceptions')!;
-            expect(JSON.parse(json)).toEqual([
+            expect(JSON.parse(json).exceptions).toEqual([
                 {
                     id: 0,
                     parentId: null,
@@ -243,7 +204,7 @@ describe('BugSplat', function () {
             await bugsplat.post('Error without a stack!');
 
             const [, json] = appendSpy.mock.calls.find(([name]) => name === 'exceptions')!;
-            const exceptions = JSON.parse(json);
+            const exceptions = JSON.parse(json).exceptions;
             expect(exceptions).toHaveLength(1);
             expect(exceptions[0]).toMatchObject({
                 id: 0,
@@ -276,7 +237,7 @@ describe('BugSplat', function () {
             expect(result.error).toBeNull();
             expect(fetchSpy).toHaveBeenCalledOnce();
             const [, json] = appendSpy.mock.calls.find(([name]) => name === 'exceptions')!;
-            expect(JSON.parse(json)).toEqual([
+            expect(JSON.parse(json).exceptions).toEqual([
                 expect.objectContaining({ id: 0, message: 'BugSplat!', properties: {} }),
             ]);
         });

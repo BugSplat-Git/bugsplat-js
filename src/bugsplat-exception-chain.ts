@@ -1,5 +1,5 @@
 /**
- * One exception in the chain posted alongside `callstack`.
+ * One exception in the chain `post()` uploads as the crash payload.
  *
  * Entry 0 is the error passed to `post()`. Later entries are discovered by
  * walking `Error.cause` and `AggregateError.errors` depth-first, `cause`
@@ -44,7 +44,7 @@ export interface BugSplatExceptionEntry {
 /**
  * Maximum number of linked entries beyond entry 0.
  */
-export const MAX_LINKED_EXCEPTIONS = 5;
+export const MAX_LINKED_EXCEPTIONS = 100;
 /**
  * Containers nested deeper than this inside `properties` become `[Object]` / `[Array]`.
  */
@@ -58,9 +58,9 @@ export const MAX_PROPERTY_STRING_LENGTH = 1024;
  */
 export const MAX_PROPERTIES_BYTES = 8 * 1024;
 /**
- * Byte budget for the whole serialized `exceptions` array.
+ * Byte budget for the whole serialized `exceptions` field, `{ "exceptions": [...] }`.
  */
-export const MAX_EXCEPTIONS_BYTES = 64 * 1024;
+export const MAX_EXCEPTIONS_BYTES = 1024 * 1024;
 /**
  * Stacks are never truncated below this many characters by the total-size cap.
  */
@@ -389,7 +389,7 @@ function depthOf(
 }
 
 const fitsBudget = (entries: BugSplatExceptionEntry[]): boolean =>
-    serializedSize(entries) <= MAX_EXCEPTIONS_BYTES;
+    serializedSize({ exceptions: entries }) <= MAX_EXCEPTIONS_BYTES;
 
 /**
  * Halve the longest `field` across entries, never below `floor` characters

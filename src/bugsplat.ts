@@ -7,14 +7,6 @@ import {
     validateResponseBody,
 } from './bugsplat-response';
 
-export function createStandardizedCallStack(error: Error): string {
-    if (!error.stack?.includes('Error:')) {
-        return `Error: ${error.message}\n${error.stack}`;
-    }
-
-    return error.stack;
-}
-
 /**
  * Attempt to parse a response body as json
  * @returns parsed body or an empty object if an error occurred while parsing
@@ -108,7 +100,6 @@ export class BugSplat {
         const description = options.description || this._description;
         const attributes = options.attributes || this._attributes;
         const error = isError(errorToPost) ? errorToPost : new Error(errorToPost);
-        const callstack = createStandardizedCallStack(error);
         const exceptions = createExceptionChain(error);
 
         const url = this._getEnv('BUGSPLAT_CRASH_POST_URL') || `https://${this.database}.bugsplat.com/post/js/`;
@@ -120,8 +111,7 @@ export class BugSplat {
         body.append('user', user);
         body.append('email', email);
         body.append('description', description);
-        body.append('callstack', callstack);
-        body.append('exceptions', JSON.stringify(exceptions));
+        body.append('exceptions', JSON.stringify({ exceptions }));
         if (Object.keys(attributes).length > 0) {
             body.append('attributes', JSON.stringify(attributes));
         }

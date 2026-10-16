@@ -160,23 +160,22 @@ describe('createExceptionChain', () => {
             expect(chain[3].stack).toBe(innermost.stack);
         });
 
-        it('captures at most 5 linked entries beyond entry 0', () => {
-            let error = new Error('depth 10');
-            for (let i = 9; i >= 0; i--) {
+        it('captures at most MAX_LINKED_EXCEPTIONS linked entries beyond entry 0', () => {
+            const deepest = MAX_LINKED_EXCEPTIONS + 5;
+            let error = new Error(`depth ${deepest}`);
+            for (let i = deepest - 1; i >= 0; i--) {
                 error = new Error(`depth ${i}`, { cause: error });
             }
 
             const chain = createExceptionChain(error);
 
             expect(chain).toHaveLength(MAX_LINKED_EXCEPTIONS + 1);
-            expect(chain.map(({ message }) => message)).toEqual([
-                'depth 0',
-                'depth 1',
-                'depth 2',
-                'depth 3',
-                'depth 4',
-                'depth 5',
-            ]);
+            expect(chain.map(({ message }) => message)).toEqual(
+                Array.from(
+                    { length: MAX_LINKED_EXCEPTIONS + 1 },
+                    (_, i) => `depth ${i}`,
+                ),
+            );
         });
 
         it('terminates on a cycle', () => {
@@ -288,7 +287,7 @@ describe('createExceptionChain', () => {
 
         it('stops at the linked-entry cap across siblings', () => {
             const errors = Array.from(
-                { length: 10 },
+                { length: MAX_LINKED_EXCEPTIONS + 5 },
                 (_, i) => new Error(`child ${i}`),
             );
 
@@ -297,7 +296,9 @@ describe('createExceptionChain', () => {
             );
 
             expect(chain).toHaveLength(MAX_LINKED_EXCEPTIONS + 1);
-            expect(chain[MAX_LINKED_EXCEPTIONS].source).toBe('errors[4]');
+            expect(chain[MAX_LINKED_EXCEPTIONS].source).toBe(
+                `errors[${MAX_LINKED_EXCEPTIONS - 1}]`,
+            );
         });
 
         it('does not repeat an error that appears both as cause and in errors', () => {
@@ -567,9 +568,11 @@ describe('createExceptionChain', () => {
             );
 
         it('drops properties from the deepest entries first, never entries', () => {
-            // Six entries at ~7 KB each of properties: ~42 KB. A 30 KB stack on
-            // entry 0 pushes the total over 64 KB without properties being the
-            // sole culprit, so the deepest entries lose theirs first.
+            // Six entries at ~7 KB each of properties: ~42 KB. A stack on entry 0
+            // sized to leave the total 10 KB over budget means dropping one
+            // entry's properties is not enough and dropping five is never
+            // needed, so the two deepest entries lose theirs and entry 0 keeps
+            // its own.
             let error = Object.assign(
                 new Error('depth 5'),
                 kilobytesOfProperties(),
@@ -580,12 +583,17 @@ describe('createExceptionChain', () => {
                     kilobytesOfProperties(),
                 );
             }
-            error.stack = `Error: depth 0\n${'    at frame\n'.repeat(2000)}`;
+            const frame = '    at frame\n';
+            const overBudget =
+                MAX_EXCEPTIONS_BYTES - byteLength(createExceptionChain(error)) + 10 * 1024;
+            // JSON spends two bytes on each newline, so size by serialized bytes.
+            const frameBytes = byteLength(frame) - 2;
+            error.stack = `Error: depth 0\n${frame.repeat(Math.ceil(overBudget / frameBytes))}`;
 
             const chain = createExceptionChain(error);
 
             expect(chain).toHaveLength(6);
-            expect(byteLength(chain)).toBeLessThanOrEqual(MAX_EXCEPTIONS_BYTES);
+            expect(byteLength({ exceptions: chain })).toBeLessThanOrEqual(MAX_EXCEPTIONS_BYTES);
             expect(chain[5].properties).toEqual({});
             expect(chain[4].properties).toEqual({});
             expect(chain[0].properties).not.toEqual({});
@@ -593,7 +601,8 @@ describe('createExceptionChain', () => {
         });
 
         it('truncates stacks only after all properties are gone, never below the floor', () => {
-            const hugeStack = `Error: root\n${'    at frame\n'.repeat(10000)}`;
+            const frame = '    at frame\n';
+            const hugeStack = `Error: root\n${frame.repeat(Math.ceil(MAX_EXCEPTIONS_BYTES / frame.length))}`;
             const cause = Object.assign(new Error('cause'), { detail: 'd' });
             cause.stack = hugeStack;
             const error = Object.assign(new Error('root', { cause }), {
@@ -603,7 +612,7 @@ describe('createExceptionChain', () => {
 
             const chain = createExceptionChain(error);
 
-            expect(byteLength(chain)).toBeLessThanOrEqual(MAX_EXCEPTIONS_BYTES);
+            expect(byteLength({ exceptions: chain })).toBeLessThanOrEqual(MAX_EXCEPTIONS_BYTES);
             expect(chain[0].properties).toEqual({});
             expect(chain[1].properties).toEqual({});
             expect(chain[0].stack!.length).toBeLessThan(hugeStack.length);
@@ -616,15 +625,15 @@ describe('createExceptionChain', () => {
             );
         });
 
-        it('truncates the longest messages last, so a 200 KB message cannot sink the payload', () => {
-            const huge = 'm'.repeat(200 * 1024);
+        it('truncates the longest messages last, so a message over the budget cannot sink the payload', () => {
+            const huge = 'm'.repeat(2 * MAX_EXCEPTIONS_BYTES);
             const cause = new Error('connection refused');
             const error = new Error(huge, { cause });
 
             const chain = createExceptionChain(error);
 
             expect(chain).toHaveLength(2);
-            expect(byteLength(chain)).toBeLessThanOrEqual(MAX_EXCEPTIONS_BYTES);
+            expect(byteLength({ exceptions: chain })).toBeLessThanOrEqual(MAX_EXCEPTIONS_BYTES);
             expect(chain[0].message.endsWith('…')).toBe(true);
             expect(chain[0].message.length).toBeGreaterThanOrEqual(
                 MIN_MESSAGE_LENGTH,
@@ -705,13 +714,14 @@ describe('createExceptionChain', () => {
         it('measures CJK stacks in UTF-8 bytes for the total budget', async () => {
             const fallback = await loadWithoutTextEncoder();
             const error = new Error('x');
-            // 30k UTF-16 code units, 90 KB of UTF-8.
-            error.stack = '中'.repeat(30_000);
+            // Half the budget in UTF-16 code units, one and a half times it in UTF-8.
+            const units = MAX_EXCEPTIONS_BYTES / 2;
+            error.stack = '中'.repeat(units);
 
             const chain = fallback.createExceptionChain(error);
 
-            expect(byteLength(chain)).toBeLessThanOrEqual(MAX_EXCEPTIONS_BYTES);
-            expect(chain[0].stack!.length).toBeLessThan(30_000);
+            expect(byteLength({ exceptions: chain })).toBeLessThanOrEqual(MAX_EXCEPTIONS_BYTES);
+            expect(chain[0].stack!.length).toBeLessThan(units);
             expect(chain).toEqual(createExceptionChain(error));
         });
 
