@@ -6,8 +6,35 @@
     "module": "./dist/esm/index.js",
     "browser": "./dist/esm/index.js",
     "types": "./dist/esm/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/esm/index.d.ts",
+            "browser": "./dist/esm/index.js",
+            "module": "./dist/esm/index.js",
+            "import": "./dist/cjs/index.js",
+            "require": "./dist/cjs/index.js",
+            "default": "./dist/cjs/index.js"
+        },
+        "./node": {
+            "types": "./dist/esm/node/index.d.ts",
+            "module": "./dist/esm/node/index.js",
+            "import": "./dist/cjs/node/index.js",
+            "require": "./dist/cjs/node/index.js",
+            "default": "./dist/cjs/node/index.js"
+        },
+        "./package.json": "./package.json",
+        "./dist/*": "./dist/*"
+    },
+    "typesVersions": {
+        "*": {
+            "node": [
+                "./dist/esm/node/index.d.ts"
+            ]
+        }
+    },
     "files": [
-        "dist"
+        "dist",
+        "node"
     ],
     "engines": {
         "npm": ">=8.0.0",

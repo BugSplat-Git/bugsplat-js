@@ -46,6 +46,20 @@ const { BugSplat } = require('bugsplat');
 import { BugSplat } from 'https://esm.sh/bugsplat@8.0.1';
 ```
 
+### Node.js
+Node.js programs import the same client from `bugsplat/node`, which adds file attachments read from disk and a helper that exits the process after the report is posted:
+```ts
+import { BugSplatNode } from 'bugsplat/node';
+
+const bugsplat = new BugSplatNode(database, application, version);
+bugsplat.setDefaultAdditionalFilePaths(['/var/log/my-app.log']);
+
+process.on('uncaughtException', (error) => bugsplat.postAndExit(error));
+process.on('unhandledRejection', (reason) => bugsplat.post(reason as Error));
+```
+
+`post()` and `postFeedback()` accept `additionalFilePaths` alongside the usual options. Files are uploaded under their base name; missing files are skipped, as are files that would push the upload past 10 MB.
+
 Create a new instance of the BugSplat class with the name of your BugSplat database, the name of your application and the version of your application:
 ```ts
 const bugsplat = new BugSplat(database, application, version);
@@ -148,7 +162,20 @@ await bugsplat.postFeedback('UI rendering issue', {
 
 ## 📢 Upgrading
 
-If you are developing a Node.js application and were using bugsplat-js <= 5.0.0 please upgrade to [bugsplat-node](https://www.npmjs.com/package/bugsplat-node). BugSplat-node has the same consumer APIs as bugsplat-js <= 5.0.0. Additionally, support for file attachments and exiting the Node process in the error handler have been moved to [bugsplat-node](https://www.npmjs.com/package/bugsplat-node) so that bugsplat-js can be run in browsers as well as Node.js environments.
+### From bugsplat-node
+
+[bugsplat-node](https://www.npmjs.com/package/bugsplat-node) is deprecated. Its `BugSplatNode` class ships in this package as `bugsplat/node` with the same API, so the upgrade is the import:
+
+```diff
+- import { BugSplatNode } from 'bugsplat-node';
++ import { BugSplatNode } from 'bugsplat/node';
+```
+
+Remove `bugsplat-node` from your dependencies and require `bugsplat` 9.3.0 or newer. `additionalFilePaths`, `setDefaultAdditionalFilePaths()` and `postAndExit()` behave as before.
+
+### From bugsplat-js 5 or older in Node.js
+
+File attachments and exiting the process from an error handler moved out of the main entry so that it runs in browsers as well as Node.js. Import from `bugsplat/node` to get them back.
 
 ## 🧑‍💻 Contributing
 
