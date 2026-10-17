@@ -1,0 +1,23 @@
+{
+  "name": "my-node-crasher",
+  "version": "5.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "start:with-cause": "node index.js --with-cause",
+    "native": "node native.js"
+  },
+  "author": "@bobbyg603",
+  "homepage": "https://www.bugsplat.com",
+  "bugs": "https://github.com/BugSplat-Git/bugsplat-js/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BugSplat-Git/bugsplat-js",
+    "directory": "examples/my-node-crasher"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "bugsplat": "^9.3.0"
+  }
+}

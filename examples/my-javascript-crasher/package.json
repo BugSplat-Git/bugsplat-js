@@ -1,0 +1,34 @@
+{
+  "name": "my-javascript-crasher",
+  "version": "1.0.0",
+  "description": "Sample js application integrated with bugsplat",
+  "main": "index.html",
+  "scripts": {
+    "start": "npm run test",
+    "test": "http-server ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BugSplat-Git/bugsplat-js",
+    "directory": "examples/my-javascript-crasher"
+  },
+  "keywords": [
+    "js",
+    "javascript",
+    "bugsplat",
+    "error",
+    "crash",
+    "reporting",
+    "analytics",
+    "apm"
+  ],
+  "author": "@bobbyg603",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/BugSplat-Git/bugsplat-js/issues"
+  },
+  "homepage": "https://github.com/BugSplat-Git/bugsplat-js/tree/master/examples/my-javascript-crasher",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

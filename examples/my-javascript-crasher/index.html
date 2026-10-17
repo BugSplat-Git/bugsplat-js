@@ -1,0 +1,119 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="styles.css" />
+    <title>my-javascript-crasher</title>
+    <script type="module">
+      import { BugSplat } from 'https://esm.sh/bugsplat@9.2.0';
+      const bugsplat = new BugSplat('fred', 'my-javascript-crasher', '1.0.0');
+
+      window.onerror = function (message, source, lineno, colno, error) {
+        bugsplat.post(error);
+      };
+      window.addEventListener('unhandledrejection', function (event) {
+        bugsplat.post(event.reason);
+      });
+
+      document.addEventListener('DOMContentLoaded', function () {
+        const buttons = document.querySelectorAll('.error');
+        buttons.forEach((button) => {
+          button.addEventListener('click', function (event) {
+            const id = event.target.id;
+            if (id === 'throw') {
+              throwStackFrame0();
+            } else if (id === 'type') {
+              typeStackFrame0();
+            } else if (id === 'rejection') {
+              Promise.resolve().then(rejectionStackFrame0);
+            } else if (id === 'cause') {
+              crashWithCause();
+            }
+          });
+        });
+      });
+
+      function throwStackFrame0() {
+        throwStackFrame1();
+      }
+
+      function throwStackFrame1() {
+        throwStackFrame2();
+      }
+
+      function throwStackFrame2() {
+        throw new Error('This is an arbitrary error!');
+      }
+
+      function typeStackFrame0() {
+        typeStackFrame1();
+      }
+
+      function typeStackFrame1() {
+        typeStackFrame2();
+      }
+
+      function typeStackFrame2() {
+        const obj = {};
+        obj.method();
+      }
+
+      async function rejectionStackFrame0() {
+        return rejectionStackFrame1();
+      }
+
+      async function rejectionStackFrame1() {
+        return rejectionStackFrame2();
+      }
+
+      async function rejectionStackFrame2() {
+        throw new Error('This is an unhandled rejection!');
+      }
+
+      function crashWithCause() {
+        loadUserSettings();
+      }
+
+      function loadUserSettings() {
+        try {
+          JSON.parse('{ not valid json');
+        } catch (error) {
+          throw new Error('Failed to load user settings', { cause: error });
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="container">
+      <a href="https://www.bugsplat.com">
+        <img class="logo" src="./assets/bugsplat-logo.png" />
+      </a>
+      <div class="content">
+        <h1>Welcome to my-javascript-crasher!</h1>
+        <p>
+          This is a sample application that demonstrates
+          <a href="https://bugsplat.com" target="_blank">BugSplat</a> error
+          reporting for JavaScript based browser applications.
+        </p>
+        <div class="errors">
+          <h2>Errors</h2>
+          <button id="throw" class="error">
+            <h2>Error</h2>
+            <h4>Throw an arbitrary error</h4>
+          </button>
+          <button id="type" class="error">
+            <h2>Type Error</h2>
+            <h4>Call a function that doesn't exist</h4>
+          </button>
+          <button id="rejection" class="error">
+            <h2>Unhandled Rejection</h2>
+            <h4>Reject a promise without a catch</h4>
+          </button>
+          <button id="cause" class="error">
+            <h2>Crash with cause</h2>
+            <h4>Throw an error with a cause</h4>
+          </button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
