@@ -107,7 +107,6 @@ That’s it! Your application is now configured to post crash reports to BugSpla
 Runnable samples live in [`examples/`](examples). Run each command from the example's own directory (for example `cd examples/my-node-crasher`). Every sample has a "Crash with cause" variant that throws an `Error` whose `cause` is a `SyntaxError` from `JSON.parse`, so you can see the chain in BugSplat as `Caused by:` rows.
 
 - [my-javascript-crasher](examples/my-javascript-crasher) — vanilla browser app importing `bugsplat` from esm.sh. `npm i && npm start`, open [http://localhost:8080](http://localhost:8080) and click **Error**, **Type Error**, **Unhandled Rejection** or **Crash with cause**.
-- [my-deno-crasher](examples/my-deno-crasher) — Deno script importing `bugsplat` from esm.sh. `deno run --allow-net --allow-read --allow-env=BUGSPLAT_CRASH_POST_URL main.ts`; add `--with-cause` for the error chain.
 - [my-node-crasher](examples/my-node-crasher) — CommonJS Node.js app using `BugSplatNode` from `bugsplat/node`. `npm i && npm start`, or `npm run start:with-cause`; `npm run native` attaches a Node.js diagnostic report.
 - [my-ts-node-crasher](examples/my-ts-node-crasher) — TypeScript Node.js app using `BugSplatNode` from `bugsplat/node`. `npm i && npm start`, or `npm run start:with-cause`.
 

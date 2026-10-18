@@ -1,7 +1,0 @@
-{
-  // Deno 2.5 applies the library's root tsconfig.json (found beside the root package.json) to this file; its lib has no deno.ns. Restating Deno's default lib keeps `deno check` on Deno's types.
-  "compilerOptions": {
-    "lib": ["deno.window"]
-  },
-  "lock": false
-}
