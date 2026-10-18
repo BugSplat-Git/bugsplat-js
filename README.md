@@ -41,11 +41,6 @@ import { BugSplat } from 'bugsplat';
 const { BugSplat } = require('bugsplat');
 ```
 
-### Deno
-```ts
-import { BugSplat } from 'https://esm.sh/bugsplat@8.0.1';
-```
-
 ### Node.js
 Node.js programs import the same client from `bugsplat/node`, which adds file attachments read from disk and a helper that exits the process after the report is posted:
 ```ts
