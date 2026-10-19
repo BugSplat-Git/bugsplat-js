@@ -1,12 +1,17 @@
 {
   "name": "my-node-crasher",
-  "version": "5.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "6.0.0",
+  "description": "Node.js TypeScript application integrated with bugsplat/node",
+  "type": "module",
+  "main": "src/index.ts",
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
-    "start": "node index.js",
-    "start:with-cause": "node index.js --with-cause",
-    "native": "node native.js"
+    "start": "node src/index.ts",
+    "start:with-cause": "node src/index.ts --with-cause",
+    "native": "node src/native.ts",
+    "typecheck": "tsc -p ."
   },
   "author": "@bobbyg603",
   "homepage": "https://www.bugsplat.com",
@@ -19,5 +24,9 @@
   "license": "MIT",
   "dependencies": {
     "bugsplat": "^9.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^7.0.2"
   }
 }

@@ -3,4 +3,3 @@ dist/
 .DS_STORE
 .env
 examples/my-node-crasher/report.json
-examples/my-ts-node-crasher/lib/
