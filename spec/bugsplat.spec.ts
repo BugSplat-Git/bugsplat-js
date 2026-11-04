@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
 import {
     appendAttachment,
     BugSplat,
+    DEFAULT_DEDUPE_WINDOW_MS,
     tryParseResponseJson,
 } from '../src/bugsplat';
 import { createExceptionChain } from '../src/bugsplat-exception-chain';
@@ -241,6 +242,151 @@ describe('BugSplat', function () {
             expect(JSON.parse(json).exceptions).toEqual([
                 expect.objectContaining({ id: 0, message: 'BugSplat!', properties: {} }),
             ]);
+        });
+    });
+
+    describe('dedupe', () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it('should skip an identical error posted within the window', async () => {
+            const error = new Error('Request failed');
+
+            await bugsplat.post(error);
+            const result = await bugsplat.post(error);
+
+            expect(fetchSpy).toHaveBeenCalledOnce();
+            expect(result.skipped).toBe(true);
+            expect(result.response).toBeNull();
+            expect(result.error?.message).toBe('BugSplat Error: Duplicate report skipped');
+        });
+
+        it('should skip a duplicate while the first post is still in flight', async () => {
+            let resolveFetch: (value: unknown) => void = () => undefined;
+            fetchSpy.mockReturnValueOnce(new Promise((resolve) => (resolveFetch = resolve)));
+            const error = new Error('Request failed');
+
+            const first = bugsplat.post(error);
+            const second = await bugsplat.post(error);
+            resolveFetch(fakeSuccessResponseBody);
+            await first;
+
+            expect(fetchSpy).toHaveBeenCalledOnce();
+            expect(second.skipped).toBe(true);
+        });
+
+        it('should skip a duplicate before calling beforePost or logging', async () => {
+            const hook = vi.fn((report) => report);
+            const logSpy = vi.spyOn(console, 'log');
+            bugsplat.setBeforePost(hook);
+            const error = new Error('Request failed');
+
+            await bugsplat.post(error);
+            hook.mockClear();
+            logSpy.mockClear();
+            await bugsplat.post(error);
+
+            expect(hook).not.toHaveBeenCalled();
+            expect(logSpy).not.toHaveBeenCalled();
+        });
+
+        it('should post an error thrown repeatedly by the same code once', async () => {
+            const poll = async () => {
+                throw new Error('Request failed');
+            };
+
+            for (let i = 0; i < 5; i++) {
+                await poll().catch((error) => bugsplat.post(error));
+            }
+
+            expect(fetchSpy).toHaveBeenCalledOnce();
+        });
+
+        it('should post errors with a different message or top frame', async () => {
+            const first = new Error('Request failed');
+            const otherMessage = new Error('Request timed out');
+            const otherStack = new Error('Request failed');
+            otherStack.stack = 'Error: Request failed\n    at elsewhere (file.js:1:1)';
+            first.stack = 'Error: Request failed\n    at poll (file.js:9:9)';
+
+            await bugsplat.post(first);
+            await bugsplat.post(otherMessage);
+            await bugsplat.post(otherStack);
+
+            expect(fetchSpy).toHaveBeenCalledTimes(3);
+        });
+
+        it('should ignore frames below the top frame', async () => {
+            const first = new Error('Request failed');
+            first.stack = 'Error: Request failed\n    at poll (file.js:1:1)\n    at main (file.js:2:2)\n    at file.js:3:3';
+            const later = new Error('Request failed');
+            later.stack = 'Error: Request failed\n    at poll (file.js:1:1)\n    at async main (file.js:2:2)';
+
+            await bugsplat.post(first);
+            await bugsplat.post(later);
+
+            expect(fetchSpy).toHaveBeenCalledOnce();
+        });
+
+        it('should match top frames in the JavaScriptCore and Firefox format', async () => {
+            const first = new Error('Request failed');
+            first.stack = 'poll@https://app.js/bundle.js:1:1\nmain@https://app.js/bundle.js:2:2';
+            const later = new Error('Request failed');
+            later.stack = 'poll@https://app.js/bundle.js:1:1\nother@https://app.js/bundle.js:5:5';
+            const elsewhere = new Error('Request failed');
+            elsewhere.stack = 'fetchFeed@https://app.js/bundle.js:7:7';
+
+            await bugsplat.post(first);
+            await bugsplat.post(later);
+            await bugsplat.post(elsewhere);
+
+            expect(fetchSpy).toHaveBeenCalledTimes(2);
+        });
+
+        it('should post the same error again once the window has passed', async () => {
+            const error = new Error('Request failed');
+
+            await bugsplat.post(error);
+            vi.advanceTimersByTime(DEFAULT_DEDUPE_WINDOW_MS);
+            await bugsplat.post(error);
+
+            expect(fetchSpy).toHaveBeenCalledTimes(2);
+        });
+
+        it('should use the window set with setDedupeWindow', async () => {
+            const error = new Error('Request failed');
+            bugsplat.setDedupeWindow(1000);
+
+            await bugsplat.post(error);
+            vi.advanceTimersByTime(999);
+            await bugsplat.post(error);
+            vi.advanceTimersByTime(1);
+            await bugsplat.post(error);
+
+            expect(fetchSpy).toHaveBeenCalledTimes(2);
+        });
+
+        it('should post every error when the window is 0', async () => {
+            const error = new Error('Request failed');
+            bugsplat.setDedupeWindow(0);
+
+            await bugsplat.post(error);
+            await bugsplat.post(error);
+
+            expect(fetchSpy).toHaveBeenCalledTimes(2);
+        });
+
+        it('should skip the same string message posted again', async () => {
+            await bugsplat.post('Request failed');
+            await bugsplat.post('Request failed');
+
+            expect(fetchSpy).toHaveBeenCalledOnce();
         });
     });
 

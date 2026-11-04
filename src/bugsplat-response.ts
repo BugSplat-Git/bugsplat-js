@@ -40,8 +40,9 @@ export interface BugSplatResponseType<ErrorType extends Error | null> {
      */
     original: Error | string;
     /**
-     * `true` when a `beforePost` hook cancelled the report. No request was
-     * made; `error` describes the cancellation and `response` is `null`.
+     * `true` when the report was not sent: a `beforePost` hook cancelled it, or
+     * the same error was already posted within the dedupe window. No request
+     * was made; `error` describes why and `response` is `null`.
      */
     skipped?: boolean;
 }
