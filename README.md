@@ -120,6 +120,7 @@ bugsplat.setDefaultUser(user); // The name or id of your user
 bugsplat.setDefaultEmail(email); // The email of your user
 bugsplat.setDefaultDescription(description); // Additional info about your crash that gets reset after every post
 bugsplat.setBeforePost(hook); // Inspect, modify, or cancel a report right before it is sent (see beforePost below)
+bugsplat.setDedupeWindow(ms); // How long a posted error is remembered so repeats are skipped; defaults to 60000, 0 posts every error (see Duplicate reports below)
 async bugsplat.post(error, options); // Posts an arbitrary Error object to BugSplat
 // If the values options.appKey, options.user, options.email, options.description are set the corresponding default values will be overwritten
 // Returns a promise that resolves with properties: error (if there was an error posting to BugSplat), response (the response from the BugSplat crash post API), original (the error passed by bugsplat.post), and skipped (true if a beforePost hook cancelled the report)
@@ -175,6 +176,15 @@ if (result.skipped) {
 ```
 
 If the hook throws, the error is logged with `console.error` and the report is sent unmodified.
+
+### Duplicate reports
+
+An error thrown in a loop, such as a failing request in a polling hook, is reported once. When `post()` is called with an error whose name, message and top stack frame match one posted in the last 60 seconds, it makes no request, logs nothing, and resolves with `skipped: true`. The check runs before the `beforePost` hook, so a duplicate costs a string comparison. A duplicate posted while the first report is still uploading is skipped too.
+
+```ts
+bugsplat.setDedupeWindow(5 * 60 * 1000); // remember errors for 5 minutes
+bugsplat.setDedupeWindow(0); // post every error
+```
 
 ### User Feedback
 

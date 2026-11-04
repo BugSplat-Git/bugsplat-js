@@ -1,4 +1,4 @@
-export { BugSplat } from './bugsplat';
+export { BugSplat, DEFAULT_DEDUPE_WINDOW_MS } from './bugsplat';
 export { createExceptionChain, type BugSplatExceptionEntry } from './bugsplat-exception-chain';
 export type {
     BeforePostHook,

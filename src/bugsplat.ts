@@ -71,6 +71,20 @@ export function appendAttachment(body: FormData, attachment: BugSplatAttachment)
 }
 
 /**
+ * The first `file:line:column` frame of a stack, or the whole stack when no
+ * frame has that shape. Frames below the top differ between the first throw
+ * and later throws from the same code, so only the top frame identifies it.
+ */
+function topFrame(stack = ''): string {
+    return stack.split('\n').find((line) => /:\d+:\d+\)?\s*$/.test(line)) ?? stack;
+}
+
+/**
+ * Default for `BugSplat.setDedupeWindow`.
+ */
+export const DEFAULT_DEDUPE_WINDOW_MS = 60_000;
+
+/**
  * BugSplat crash and feedback posting client.
  */
 export class BugSplat {
@@ -83,6 +97,8 @@ export class BugSplat {
     private _email = '';
     private _user = '';
     private _beforePost: BeforePostHook | null = null;
+    private _dedupeWindowMs = DEFAULT_DEDUPE_WINDOW_MS;
+    private _lastSent = new Map<string, number>();
 
     constructor(
         public readonly database: string,
@@ -102,6 +118,15 @@ export class BugSplat {
         options = options || {};
 
         const error = isError(errorToPost) ? errorToPost : new Error(errorToPost);
+        if (this._isDuplicate(errorToPost)) {
+            return {
+                error: new Error('BugSplat Error: Duplicate report skipped'),
+                response: null,
+                original: errorToPost,
+                skipped: true,
+            };
+        }
+
         let report: BugSplatReport = {
             error,
             exceptions: createExceptionChain(error),
@@ -303,6 +328,41 @@ export class BugSplat {
      */
     setBeforePost(hook: BeforePostHook | null): void {
         this._beforePost = hook;
+    }
+
+    /**
+     * Sets how long, in milliseconds, an error is remembered after it is posted.
+     * Posting an error with the same name, message and top stack frame (or the
+     * same string) within the window
+     * makes no request and resolves with `skipped: true`, so an error thrown in
+     * a loop is reported once. Defaults to 60 seconds; pass `0` to post every error.
+     */
+    setDedupeWindow(ms: number): void {
+        this._dedupeWindowMs = ms;
+        this._lastSent.clear();
+    }
+
+    private _isDuplicate(errorToPost: Error | string): boolean {
+        if (this._dedupeWindowMs <= 0) {
+            return false;
+        }
+
+        const now = Date.now();
+        const key = isError(errorToPost)
+            ? `${errorToPost.name}\n${errorToPost.message}\n${topFrame(errorToPost.stack)}`
+            : String(errorToPost);
+        const lastSent = this._lastSent.get(key);
+        if (lastSent !== undefined && now - lastSent < this._dedupeWindowMs) {
+            return true;
+        }
+
+        for (const [sentKey, sentAt] of this._lastSent) {
+            if (now - sentAt >= this._dedupeWindowMs) {
+                this._lastSent.delete(sentKey);
+            }
+        }
+        this._lastSent.set(key, now);
+        return false;
     }
 
     private _getEnv(key: string): string | undefined {
