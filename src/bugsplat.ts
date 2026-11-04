@@ -1,5 +1,11 @@
 import { createExceptionChain } from './bugsplat-exception-chain';
-import type { BugSplatAttachment, BugSplatFileRef, BugSplatOptions } from './bugsplat-options';
+import type {
+    BeforePostHook,
+    BugSplatAttachment,
+    BugSplatFileRef,
+    BugSplatOptions,
+    BugSplatReport,
+} from './bugsplat-options';
 import {
     type BugSplatResponse,
     type BugSplatResponseBody,
@@ -76,6 +82,7 @@ export class BugSplat {
     private _description = '';
     private _email = '';
     private _user = '';
+    private _beforePost: BeforePostHook | null = null;
 
     constructor(
         public readonly database: string,
@@ -94,28 +101,55 @@ export class BugSplat {
     ): Promise<BugSplatResponse> {
         options = options || {};
 
-        const appKey = options.appKey || this._appKey;
-        const user = options.user || this._user;
-        const email = options.email || this._email;
-        const description = options.description || this._description;
-        const attributes = options.attributes || this._attributes;
         const error = isError(errorToPost) ? errorToPost : new Error(errorToPost);
-        const exceptions = createExceptionChain(error);
+        let report: BugSplatReport = {
+            error,
+            exceptions: createExceptionChain(error),
+            appKey: options.appKey || this._appKey,
+            user: options.user || this._user,
+            email: options.email || this._email,
+            description: options.description || this._description,
+            attributes: { ...(options.attributes || this._attributes) },
+            attachments: [...(options.attachments || [])],
+        };
+
+        if (this._beforePost) {
+            let hooked: BugSplatReport | null | undefined = report;
+            try {
+                hooked = await this._beforePost(report);
+            } catch (hookError) {
+                console.error(
+                    'BugSplat beforePost hook threw, sending the report unmodified:',
+                    hookError
+                );
+            }
+            if (!hooked) {
+                console.log('BugSplat post skipped by beforePost hook');
+                return {
+                    error: new Error('BugSplat Error: Report skipped by beforePost hook'),
+                    response: null,
+                    original: errorToPost,
+                    skipped: true,
+                };
+            }
+            report = hooked;
+        }
 
         const url = this._getEnv('BUGSPLAT_CRASH_POST_URL') || `https://${this.database}.bugsplat.com/post/js/`;
         const body = this._formData();
         body.append('database', this.database);
         body.append('appName', this.application);
         body.append('appVersion', this.version);
-        body.append('appKey', appKey);
-        body.append('user', user);
-        body.append('email', email);
-        body.append('description', description);
-        body.append('exceptions', JSON.stringify({ exceptions }));
+        body.append('appKey', report.appKey ?? '');
+        body.append('user', report.user ?? '');
+        body.append('email', report.email ?? '');
+        body.append('description', report.description ?? '');
+        body.append('exceptions', JSON.stringify({ exceptions: report.exceptions }));
+        const attributes = report.attributes ?? {};
         if (Object.keys(attributes).length > 0) {
             body.append('attributes', JSON.stringify(attributes));
         }
-        for (const attachment of options.attachments || []) {
+        for (const attachment of report.attachments ?? []) {
             appendAttachment(body, attachment);
         }
 
@@ -257,6 +291,18 @@ export class BugSplat {
      */
     setDefaultUser(user: string): void {
         this._user = user;
+    }
+
+    /**
+     * Hook that runs right before each `post()` request is sent. Receives the
+     * report with defaults and per-call options already merged. Return the
+     * (possibly modified) report to send it, or `null`/`undefined` to cancel;
+     * a cancelled post resolves with `skipped: true` and makes no request.
+     * May be async. If the hook throws, the report is sent unmodified.
+     * Pass `null` to remove the hook.
+     */
+    setBeforePost(hook: BeforePostHook | null): void {
+        this._beforePost = hook;
     }
 
     private _getEnv(key: string): string | undefined {

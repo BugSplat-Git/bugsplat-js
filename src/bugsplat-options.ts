@@ -1,3 +1,5 @@
+import type { BugSplatExceptionEntry } from './bugsplat-exception-chain';
+
 /**
  * A reference to a file on the local filesystem.
  *
@@ -68,3 +70,34 @@ export interface BugSplatOptions {
      */
     user?: string;
 }
+
+/**
+ * A crash report as `post()` will send it, after per-call options have been
+ * merged with the instance defaults. Passed to a `BeforePostHook`.
+ */
+export interface BugSplatReport extends BugSplatOptions {
+    /**
+     * The error being reported. Useful for `instanceof` checks or reading
+     * `cause`; what is uploaded is `exceptions`.
+     */
+    error: Error;
+    /**
+     * The exception chain that will be uploaded: `error` followed by its
+     * linked `cause` and `AggregateError.errors` entries.
+     */
+    exceptions: BugSplatExceptionEntry[];
+}
+
+/**
+ * Inspects, modifies, or cancels a report right before `post()` sends it.
+ *
+ * Return the report (mutated in place or a new object) to send it, or
+ * `null`/`undefined` to cancel the post. May return a promise.
+ */
+export type BeforePostHook = (
+    report: BugSplatReport
+) =>
+    | BugSplatReport
+    | null
+    | undefined
+    | Promise<BugSplatReport | null | undefined>;
