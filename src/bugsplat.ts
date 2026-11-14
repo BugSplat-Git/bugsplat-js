@@ -1,4 +1,5 @@
-import { createExceptionChain } from './bugsplat-exception-chain';
+import { collectDebugIds } from './bugsplat-debug-ids';
+import { createExceptionsPayload } from './bugsplat-exception-chain';
 import type { BugSplatAttachment, BugSplatFileRef, BugSplatOptions } from './bugsplat-options';
 import {
     type BugSplatResponse,
@@ -100,7 +101,10 @@ export class BugSplat {
         const description = options.description || this._description;
         const attributes = options.attributes || this._attributes;
         const error = isError(errorToPost) ? errorToPost : new Error(errorToPost);
-        const exceptions = createExceptionChain(error);
+        const { exceptions, debugMeta } = createExceptionsPayload(
+            error,
+            collectDebugIds(options.debugIds)
+        );
 
         const url = this._getEnv('BUGSPLAT_CRASH_POST_URL') || `https://${this.database}.bugsplat.com/post/js/`;
         const body = this._formData();
@@ -111,7 +115,9 @@ export class BugSplat {
         body.append('user', user);
         body.append('email', email);
         body.append('description', description);
-        body.append('exceptions', JSON.stringify({ exceptions }));
+        // `debugMeta` is undefined when no stack names a file with a debug ID;
+        // JSON.stringify then leaves the key out.
+        body.append('exceptions', JSON.stringify({ exceptions, debugMeta }));
         if (Object.keys(attributes).length > 0) {
             body.append('attributes', JSON.stringify(attributes));
         }

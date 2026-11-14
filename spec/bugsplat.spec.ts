@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi, Mock } from 'vitest';
 import {
     appendAttachment,
     BugSplat,
     tryParseResponseJson,
 } from '../src/bugsplat';
+import { createExceptionChain } from '../src/bugsplat-exception-chain';
 
 describe('tryParseResponseJson', () => {
     const values: unknown[] = [
@@ -240,6 +241,193 @@ describe('BugSplat', function () {
             expect(JSON.parse(json).exceptions).toEqual([
                 expect.objectContaining({ id: 0, message: 'BugSplat!', properties: {} }),
             ]);
+        });
+    });
+
+    describe('source map debug IDs', () => {
+        const index = 'https://app.example.com/assets/index-BX3k.js';
+        const vendor = 'https://app.example.com/assets/vendor-9d1c.js';
+        const lazy = 'https://app.example.com/assets/lazy-77aa.js';
+        const indexId = '9f2c1a7e-3b4d-4c5e-8f60-112233445566';
+        const vendorId = '0a1b2c3d-4e5f-4a6b-8c7d-8e9f00112233';
+        const lazyId = 'c0ffee00-1234-4abc-9def-0123456789ab';
+        const explicitId = 'deadbeef-0000-4000-8000-00000000cafe';
+
+        // What the registration snippet stores when it runs at the end of a file.
+        const registration = (file: string) =>
+            `Error\n    at ${file}:9:142\n    at ${file}:9:230`;
+        const register = (ids: Record<string, string>) => {
+            (globalThis as { _debugIds?: unknown })._debugIds = Object.fromEntries(
+                Object.entries(ids).map(([file, id]) => [registration(file), id])
+            );
+        };
+        const errorFrom = (message: string, files: string[], cause?: Error) => {
+            const error = new Error(message, { cause });
+            error.stack = [
+                `Error: ${message}`,
+                ...files.map((file, i) => `    at fn${i} (${file}:1:${100 + i})`),
+            ].join('\n');
+            return error;
+        };
+        const exceptionsField = (): string =>
+            appendSpy.mock.calls.find(([name]) => name === 'exceptions')![1];
+
+        beforeEach(() => {
+            fetchSpy.mockResolvedValue(fakeSuccessResponseBody);
+        });
+
+        afterEach(() => {
+            delete (globalThis as { _debugIds?: unknown })._debugIds;
+        });
+
+        it('should post exactly the exception chain when no debug IDs are registered', async () => {
+            const error = errorFrom('BugSplat!', [index, vendor]);
+
+            await bugsplat.post(error);
+
+            expect(exceptionsField()).toBe(
+                JSON.stringify({ exceptions: createExceptionChain(error) })
+            );
+        });
+
+        it('should post exactly the exception chain when no registered file is in a stack', async () => {
+            const error = errorFrom('BugSplat!', [index]);
+            register({ [vendor]: vendorId, [lazy]: lazyId });
+
+            await bugsplat.post(error, { debugIds: { 'app://./renderer.js': explicitId } });
+
+            expect(exceptionsField()).toBe(
+                JSON.stringify({ exceptions: createExceptionChain(error) })
+            );
+        });
+
+        it('should post exactly the exception chain when the registry is not an object', async () => {
+            const error = errorFrom('BugSplat!', [index]);
+            (globalThis as { _debugIds?: unknown })._debugIds = 'nope';
+
+            await bugsplat.post(error);
+
+            expect(exceptionsField()).toBe(
+                JSON.stringify({ exceptions: createExceptionChain(error) })
+            );
+        });
+
+        it('should add debugMeta after exceptions for registered files in the stack', async () => {
+            const error = errorFrom('BugSplat!', [index, vendor]);
+            register({ [lazy]: lazyId, [vendor]: vendorId, [index]: indexId });
+
+            await bugsplat.post(error);
+
+            expect(exceptionsField()).toBe(
+                JSON.stringify({
+                    exceptions: createExceptionChain(error),
+                    debugMeta: [
+                        { file: index, debugId: indexId },
+                        { file: vendor, debugId: vendorId },
+                    ],
+                })
+            );
+        });
+
+        it('should list files that only appear in a linked error', async () => {
+            const cause = errorFrom('cause', [lazy, index]);
+            const error = errorFrom('BugSplat!', [index], cause);
+            register({ [lazy]: lazyId, [vendor]: vendorId, [index]: indexId });
+
+            await bugsplat.post(error);
+
+            expect(JSON.parse(exceptionsField())).toEqual({
+                exceptions: createExceptionChain(error),
+                debugMeta: [
+                    { file: index, debugId: indexId },
+                    { file: lazy, debugId: lazyId },
+                ],
+            });
+        });
+
+        it('should let options.debugIds win over the registry', async () => {
+            const error = errorFrom('BugSplat!', [index, vendor]);
+            register({ [index]: indexId, [vendor]: vendorId });
+
+            await bugsplat.post(error, { debugIds: { [index]: explicitId } });
+
+            expect(JSON.parse(exceptionsField()).debugMeta).toEqual([
+                { file: index, debugId: explicitId },
+                { file: vendor, debugId: vendorId },
+            ]);
+        });
+
+        it('should use options.debugIds for files the registry does not know', async () => {
+            const renderer = 'app://./assets/renderer-41fe.js';
+            const error = errorFrom('BugSplat!', [renderer, index]);
+            register({ [index]: indexId });
+
+            await bugsplat.post(error, { debugIds: { [renderer]: explicitId } });
+
+            expect(JSON.parse(exceptionsField()).debugMeta).toEqual([
+                { file: renderer, debugId: explicitId },
+                { file: index, debugId: indexId },
+            ]);
+        });
+
+        it('should ignore options.debugIds entries that are not debug IDs', async () => {
+            const error = errorFrom('BugSplat!', [index, vendor]);
+            register({ [index]: indexId });
+
+            await bugsplat.post(error, {
+                debugIds: { [index]: 'not-a-debug-id', [vendor]: '' },
+            });
+
+            expect(JSON.parse(exceptionsField()).debugMeta).toEqual([
+                { file: index, debugId: indexId },
+            ]);
+        });
+
+        it('should match the stack of the Error created for a string', async () => {
+            // The stack belongs to the Error post() creates, so its frames are this
+            // test run's own files; take one of them as the registered file.
+            await bugsplat.post('probe');
+            const probeStack: string = JSON.parse(exceptionsField()).exceptions[0].stack;
+            const [, file] = probeStack.match(/\((.+?):\d+:\d+\)/)!;
+            appendSpy.mockClear();
+
+            await bugsplat.post('Error without a stack!', { debugIds: { [file]: indexId } });
+
+            expect(JSON.parse(exceptionsField()).debugMeta).toEqual([
+                { file, debugId: indexId },
+            ]);
+        });
+
+        it('should still post when reading the registry throws', async () => {
+            const error = errorFrom('BugSplat!', [index]);
+            Object.defineProperty(globalThis, '_debugIds', {
+                configurable: true,
+                get() {
+                    throw new Error('nope');
+                },
+            });
+
+            const result = await bugsplat.post(error);
+
+            expect(result.error).toBeNull();
+            expect(exceptionsField()).toBe(
+                JSON.stringify({ exceptions: createExceptionChain(error) })
+            );
+        });
+
+        it('should not change what postFeedback sends', async () => {
+            await bugsplat.postFeedback('My feedback', { description: 'd' });
+            const withoutIds = appendSpy.mock.calls.map((call) => [...call]);
+            appendSpy.mockClear();
+            register({ [index]: indexId });
+
+            await bugsplat.postFeedback('My feedback', {
+                description: 'd',
+                debugIds: { [vendor]: vendorId },
+            });
+
+            expect(appendSpy.mock.calls).toEqual(withoutIds);
+            expect(appendSpy.mock.calls.map(([name]) => name)).not.toContain('exceptions');
         });
     });
 

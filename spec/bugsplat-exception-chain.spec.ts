@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
     createExceptionChain,
+    createExceptionsPayload,
     MAX_EXCEPTIONS_BYTES,
     MAX_LINKED_EXCEPTIONS,
     MAX_PROPERTIES_BYTES,
@@ -792,5 +793,219 @@ describe('createExceptionChain', () => {
 
             expect(JSON.parse(JSON.stringify(chain))).toEqual(chain);
         });
+    });
+});
+
+describe('createExceptionsPayload', () => {
+    const index = 'https://app.example.com/assets/index-BX3k.js';
+    const vendor = 'https://app.example.com/assets/vendor-9d1c.js';
+    const lazy = 'https://app.example.com/assets/lazy-77aa.js';
+    const debugIds = {
+        [index]: '9f2c1a7e-3b4d-4c5e-8f60-112233445566',
+        [vendor]: '0a1b2c3d-4e5f-4a6b-8c7d-8e9f00112233',
+        [lazy]: 'c0ffee00-1234-4abc-9def-0123456789ab',
+    };
+    const rows = [index, vendor, lazy].map((file) => ({
+        file,
+        debugId: debugIds[file],
+    }));
+    const frames =
+        `    at render (${index}:1:2345)\n` +
+        `    at flush (${vendor}:1:6789)\n` +
+        `    at ${lazy}:1:10\n`;
+    // What `"debugMeta": [...]` adds to the serialized `{ "exceptions": [...] }`.
+    const debugMetaBytes = (list: unknown[]) =>
+        byteLength({ exceptions: [], debugMeta: list }) -
+        byteLength({ exceptions: [] });
+
+    /**
+     * An error naming all three files whose `{ exceptions }` serializes to
+     * exactly `bytes` bytes.
+     */
+    const errorOfSize = (bytes: number, properties: object = {}) => {
+        const error = Object.assign(new Error('root'), properties);
+        error.stack = `Error: root\n${frames}`;
+        const padding =
+            bytes - byteLength({ exceptions: createExceptionChain(error) });
+        error.stack += 'x'.repeat(padding);
+        expect(byteLength({ exceptions: createExceptionChain(error) })).toBe(
+            bytes,
+        );
+        return error;
+    };
+
+    it('returns the chain alone when there are no debug IDs', () => {
+        const error = new Error('root', { cause: new Error('cause') });
+
+        const payload = createExceptionsPayload(error);
+
+        expect(payload).toEqual({ exceptions: createExceptionChain(error) });
+        expect('debugMeta' in payload).toBe(false);
+    });
+
+    it('returns the chain alone when no stack names a file with a debug ID', () => {
+        const error = new Error('root');
+        error.stack = 'Error: root\n    at f (https://app.example.com/assets/other.js:1:1)';
+
+        const payload = createExceptionsPayload(error, debugIds);
+
+        expect(payload).toEqual({ exceptions: createExceptionChain(error) });
+        expect('debugMeta' in payload).toBe(false);
+    });
+
+    it('adds debugMeta without changing the chain', () => {
+        const cause = new Error('cause');
+        cause.stack = `Error: cause\n    at ${lazy}:1:10`;
+        const error = new Error('root', { cause });
+        error.stack = `Error: root\n    at render (${index}:1:2345)`;
+
+        const payload = createExceptionsPayload(error, debugIds);
+
+        expect(payload).toEqual({
+            exceptions: createExceptionChain(error),
+            debugMeta: [rows[0], rows[2]],
+        });
+        expect(Object.keys(payload)).toEqual(['exceptions', 'debugMeta']);
+    });
+
+    describe('total size cap', () => {
+        it('counts debugMeta toward the budget and can fill it exactly', () => {
+            const error = errorOfSize(
+                MAX_EXCEPTIONS_BYTES - debugMetaBytes(rows),
+            );
+
+            const payload = createExceptionsPayload(error, debugIds);
+
+            expect(payload.debugMeta).toEqual(rows);
+            expect(byteLength(payload)).toBe(MAX_EXCEPTIONS_BYTES);
+            expect(payload.exceptions[0].stack).toBe(error.stack);
+        });
+
+        it('leaves out rows from the end, not stack, when one byte over', () => {
+            const error = errorOfSize(
+                MAX_EXCEPTIONS_BYTES - debugMetaBytes(rows) + 1,
+            );
+
+            const payload = createExceptionsPayload(error, debugIds);
+
+            expect(payload.debugMeta).toEqual(rows.slice(0, 2));
+            expect(byteLength(payload)).toBeLessThanOrEqual(
+                MAX_EXCEPTIONS_BYTES,
+            );
+            expect(payload.exceptions[0].stack).toBe(error.stack);
+        });
+
+        it('keeps the row for the top frame longest', () => {
+            const error = errorOfSize(
+                MAX_EXCEPTIONS_BYTES - debugMetaBytes(rows.slice(0, 1)),
+            );
+
+            const payload = createExceptionsPayload(error, debugIds);
+
+            expect(payload.debugMeta).toEqual(rows.slice(0, 1));
+            expect(byteLength(payload)).toBe(MAX_EXCEPTIONS_BYTES);
+        });
+
+        it('leaves debugMeta out when the chain alone fills the budget', () => {
+            const error = errorOfSize(MAX_EXCEPTIONS_BYTES);
+
+            const payload = createExceptionsPayload(error, debugIds);
+
+            expect('debugMeta' in payload).toBe(false);
+            expect(byteLength(payload)).toBe(MAX_EXCEPTIONS_BYTES);
+            expect(payload.exceptions[0].stack).toBe(error.stack);
+        });
+
+        it('never drops properties to make room for debugMeta', () => {
+            const error = errorOfSize(MAX_EXCEPTIONS_BYTES - 10, {
+                code: 'E_RENDER',
+            });
+
+            const payload = createExceptionsPayload(error, debugIds);
+
+            expect('debugMeta' in payload).toBe(false);
+            expect(payload.exceptions[0].properties).toEqual({
+                code: 'E_RENDER',
+            });
+            expect(payload.exceptions[0].stack).toBe(error.stack);
+        });
+
+        it('matches files before a stack is truncated and truncates it no further', () => {
+            const filler = '    at recurse (https://app.example.com/assets/other.js:1:1)\n';
+            const error = new Error('root');
+            // The frame for `lazy` sits past the point the size cap cuts at.
+            error.stack =
+                `Error: root\n    at render (${index}:1:2345)\n` +
+                filler.repeat(Math.ceil(MAX_EXCEPTIONS_BYTES / filler.length)) +
+                `    at ${lazy}:1:10`;
+
+            const payload = createExceptionsPayload(error, debugIds);
+
+            expect(payload.exceptions).toEqual(createExceptionChain(error));
+            expect(payload.exceptions[0].stack!.endsWith('…')).toBe(true);
+            expect(payload.exceptions[0].stack).not.toContain(lazy);
+            expect(payload.debugMeta).toEqual([rows[0], rows[2]]);
+            expect(byteLength(payload)).toBeLessThanOrEqual(
+                MAX_EXCEPTIONS_BYTES,
+            );
+        });
+
+        it('measures debugMeta in UTF-8 bytes without TextEncoder', async () => {
+            const cjk = `https://app.example.com/assets/${'中'.repeat(100)}.js`;
+            const cjkIds = { ...debugIds, [cjk]: debugIds[lazy] };
+            const error = new Error('root');
+            error.stack = `Error: root\n    at render (${index}:1:2345)\n    at ${cjk}:1:10\n`;
+            const both = [rows[0], { file: cjk, debugId: debugIds[lazy] }];
+            // 100 bytes over the budget with both rows; the CJK row is 200
+            // bytes longer than its UTF-16 length, so counting code units
+            // would let it through.
+            const padding =
+                MAX_EXCEPTIONS_BYTES -
+                debugMetaBytes(both) +
+                100 -
+                byteLength({ exceptions: createExceptionChain(error) });
+            error.stack += 'x'.repeat(padding);
+            const globals = globalThis as { TextEncoder?: unknown };
+            const original = globals.TextEncoder;
+            globals.TextEncoder = undefined;
+            let fallback: typeof import('../src/bugsplat-exception-chain');
+            try {
+                vi.resetModules();
+                fallback = await import('../src/bugsplat-exception-chain');
+            } finally {
+                globals.TextEncoder = original;
+                vi.resetModules();
+            }
+            expect(fallback.createExceptionsPayload).not.toBe(
+                createExceptionsPayload,
+            );
+
+            const payload = fallback.createExceptionsPayload(error, cjkIds);
+
+            expect(payload.debugMeta).toEqual([rows[0]]);
+            expect(payload).toEqual(createExceptionsPayload(error, cjkIds));
+            expect(byteLength(payload)).toBeLessThanOrEqual(
+                MAX_EXCEPTIONS_BYTES,
+            );
+        });
+    });
+
+    it('returns entry 0 alone when the chain cannot be walked', () => {
+        const error = new Error('root');
+        error.stack = `Error: root\n    at render (${index}:1:2345)`;
+        Object.defineProperty(error, 'errors', {
+            get() {
+                return new Proxy([], {
+                    get() {
+                        throw new Error('nope');
+                    },
+                });
+            },
+        });
+
+        const payload = createExceptionsPayload(error, debugIds);
+
+        expect(payload.exceptions).toHaveLength(1);
+        expect(payload.exceptions[0].message).toBe('root');
     });
 });
