@@ -32,18 +32,24 @@ const esm = /^\.\/dist\/esm\/.*\.js$/;
 const types = /^\.\/dist\/esm\/.*\.d\.ts$/;
 
 // The ESM build is not loadable by Node (no "type": "module", .js extension),
-// so every resolver that can execute CommonJS must get the CJS build. Only
-// bundlers that advertise "module" get ESM.
+// so Node, Bun and Jest must get the CJS build. Bundlers that advertise
+// "module" get ESM, and so do browser-targeting resolvers handling an ESM
+// import: Angular CLI drops "module" (its builder receives conditions: [],
+// which replaces the default list), leaving only "browser" + "import".
+// Jest with jsdom also sets "browser" but resolves through "require", so it
+// still gets CJS.
 const resolvers: Array<{ name: string; conditions: string[]; expected: RegExp }> = [
     { name: 'Node require()', conditions: ['node', 'require'], expected: cjs },
     { name: 'Node import', conditions: ['node', 'import'], expected: cjs },
     { name: 'Bun', conditions: ['bun', 'node', 'import'], expected: cjs },
     { name: 'Jest with jest-environment-node', conditions: ['node', 'require'], expected: cjs },
     { name: 'Jest with jsdom (jest-expo/web)', conditions: ['browser', 'require'], expected: cjs },
-    { name: 'Metro for Expo web', conditions: ['browser', 'require', 'import', 'react-native'], expected: cjs },
+    { name: 'Metro for Expo web', conditions: ['browser', 'require', 'import', 'react-native'], expected: esm },
     { name: 'Vite', conditions: ['module', 'browser', 'import'], expected: esm },
     { name: 'webpack 5 web target', conditions: ['webpack', 'browser', 'module', 'import'], expected: esm },
     { name: 'esbuild browser platform', conditions: ['browser', 'module', 'import'], expected: esm },
+    { name: 'Angular CLI (esbuild, no "module")', conditions: ['es2015', 'es2020', 'browser', 'import'], expected: esm },
+    { name: 'Angular CLI require()', conditions: ['es2015', 'es2020', 'browser', 'require'], expected: cjs },
     { name: 'TypeScript', conditions: ['types', 'import'], expected: types },
 ];
 
