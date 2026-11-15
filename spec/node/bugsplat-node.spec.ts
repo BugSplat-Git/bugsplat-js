@@ -1,6 +1,12 @@
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import os from 'node:os';
+import path from 'node:path';
 import type { Mock } from 'vitest';
 import type { BugSplat } from '../../src/bugsplat';
-import { BugSplatNode } from '../../src/node/index';
+import { createExceptionChain } from '../../src/bugsplat-exception-chain';
+import { getDebugIds as getDebugIdsFromMainEntry } from '../../src/index';
+import { BugSplatNode, getDebugIds } from '../../src/node/index';
 
 // Public surface plus the private collaborators the tests stub.
 type Testable = { [K in keyof BugSplatNode]: BugSplatNode[K] } & {
@@ -90,6 +96,20 @@ describe('BugSplatNode', () => {
 
             expect(bugsplatNode._bugsplat.post).toHaveBeenCalledWith(error, {
                 ...options,
+                attachments: [],
+            });
+        });
+
+        it('passes debugIds through to the wrapped client', async () => {
+            const error = new Error('🐛');
+            const debugIds = {
+                'file:///srv/app/dist/main.mjs': '9f2c1a7e-3b4d-4c5e-8f60-112233445566',
+            };
+
+            await bugsplatNode.post(error, { debugIds });
+
+            expect(bugsplatNode._bugsplat.post).toHaveBeenCalledWith(error, {
+                debugIds,
                 attachments: [],
             });
         });
@@ -267,6 +287,97 @@ describe('BugSplatNode', () => {
             expect(bugsplatNode._bugsplat.postFeedback).toHaveBeenCalledWith('title', {
                 attachments: [],
             });
+        });
+    });
+
+    describe('source map debug IDs', () => {
+        const debugId = '9f2c1a7e-3b4d-4c5e-8f60-112233445566';
+        // The registration snippet `@bugsplat/build` appends to each script.
+        const snippet = `;!function(){try{var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof window?window:"undefined"!=typeof global?global:self,n=(new e.Error).stack;n&&(e._debugIds=e._debugIds||{},e._debugIds[n]="${debugId}")}catch(e){}}();`;
+        const nativeRequire = createRequire(__filename);
+
+        let directory: string;
+        let chunk: string;
+        let appendSpy: Mock;
+
+        beforeEach(() => {
+            // Loaded by Node's own CommonJS loader, so the registration stack
+            // and the thrown error's stack are the ones Node really produces.
+            directory = fs.realpathSync(
+                fs.mkdtempSync(path.join(os.tmpdir(), 'bugsplat debug ids (test) '))
+            );
+            chunk = path.join(directory, 'chunk-BX3k.js');
+            fs.writeFileSync(
+                chunk,
+                `exports.crash=function(){throw new Error("BugSplat!")};\n${snippet}\n//# debugId=${debugId}\n`
+            );
+
+            vi.mocked(bugsplatNode._bugsplat.post).mockRestore();
+            appendSpy = vi.fn();
+            const inner = bugsplatNode._bugsplat as unknown as {
+                _formData: () => unknown;
+                _fetch: Mock;
+            };
+            inner._formData = () => ({ append: appendSpy });
+            inner._fetch = vi.fn().mockResolvedValue({
+                status: 200,
+                ok: true,
+                json: async () => ({}),
+            });
+            vi.spyOn(console, 'log').mockImplementation(() => undefined);
+        });
+
+        afterEach(() => {
+            delete (globalThis as { _debugIds?: unknown })._debugIds;
+            delete nativeRequire.cache[chunk];
+            fs.rmSync(directory, { recursive: true, force: true });
+            vi.restoreAllMocks();
+        });
+
+        const crash = (): Error => {
+            try {
+                nativeRequire(chunk).crash();
+            } catch (error) {
+                return error as Error;
+            }
+            throw new Error('chunk did not throw');
+        };
+        const exceptionsField = (): string =>
+            appendSpy.mock.calls.find(([name]) => name === 'exceptions')![1];
+
+        it('exports getDebugIds from bugsplat/node', () => {
+            expect(getDebugIds).toBe(getDebugIdsFromMainEntry);
+        });
+
+        it('reads the file a script registered when Node loaded it', () => {
+            nativeRequire(chunk);
+
+            expect(getDebugIds()).toEqual({ [chunk]: debugId });
+        });
+
+        it('posts debugMeta for a script that registered a debug ID', async () => {
+            const error = crash();
+
+            await bugsplatNode.post(error);
+
+            expect(error.stack).toContain(`(${chunk}:1:`);
+            expect(exceptionsField()).toBe(
+                JSON.stringify({
+                    exceptions: createExceptionChain(error),
+                    debugMeta: [{ file: chunk, debugId }],
+                })
+            );
+        });
+
+        it('posts no debugMeta for a script that registered nothing', async () => {
+            fs.writeFileSync(chunk, 'exports.crash=function(){throw new Error("BugSplat!")};\n');
+            const error = crash();
+
+            await bugsplatNode.post(error);
+
+            expect(exceptionsField()).toBe(
+                JSON.stringify({ exceptions: createExceptionChain(error) })
+            );
         });
     });
 

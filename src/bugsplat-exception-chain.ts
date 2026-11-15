@@ -1,3 +1,5 @@
+import { type BugSplatDebugMeta, createDebugMeta } from './bugsplat-debug-ids';
+
 /**
  * One exception in the chain `post()` uploads as the crash payload.
  *
@@ -42,6 +44,21 @@ export interface BugSplatExceptionEntry {
 }
 
 /**
+ * The object `post()` serializes into the `exceptions` form field.
+ */
+export interface BugSplatExceptionsPayload {
+    /**
+     * The exception chain, exactly as `createExceptionChain()` returns it.
+     */
+    exceptions: BugSplatExceptionEntry[];
+    /**
+     * Source map debug IDs of the script files named in the chain's stacks.
+     * Absent when no file in a stack has a known debug ID.
+     */
+    debugMeta?: BugSplatDebugMeta[];
+}
+
+/**
  * Maximum number of linked entries beyond entry 0.
  */
 export const MAX_LINKED_EXCEPTIONS = 100;
@@ -58,7 +75,8 @@ export const MAX_PROPERTY_STRING_LENGTH = 1024;
  */
 export const MAX_PROPERTIES_BYTES = 8 * 1024;
 /**
- * Byte budget for the whole serialized `exceptions` field, `{ "exceptions": [...] }`.
+ * Byte budget for the whole serialized `exceptions` field,
+ * `{ "exceptions": [...] }` plus `"debugMeta": [...]` when present.
  */
 export const MAX_EXCEPTIONS_BYTES = 1024 * 1024;
 /**
@@ -449,6 +467,31 @@ function capTotalSize(
 }
 
 /**
+ * The leading rows of `debugMeta` that fit in the room the capped chain
+ * leaves under the total budget. Rows are only ever left out; the chain is
+ * never shortened to make room for them.
+ */
+function fitDebugMeta(
+    exceptions: BugSplatExceptionEntry[],
+    debugMeta: BugSplatDebugMeta[],
+): BugSplatDebugMeta[] {
+    if (debugMeta.length === 0) {
+        return debugMeta;
+    }
+    // `{"exceptions":[...]}` grows by `,"debugMeta":[` + rows joined by `,` + `]`.
+    let size = serializedSize({ exceptions }) + byteLength(',"debugMeta":[]');
+    const fitting: BugSplatDebugMeta[] = [];
+    for (const row of debugMeta) {
+        size += serializedSize(row) + (fitting.length > 0 ? 1 : 0);
+        if (size > MAX_EXCEPTIONS_BYTES) {
+            break;
+        }
+        fitting.push(row);
+    }
+    return fitting;
+}
+
+/**
  * Build the structured exception chain for an error: the error itself as
  * entry 0, followed by everything reachable through `cause` and
  * `AggregateError.errors` (at most `MAX_LINKED_EXCEPTIONS` linked entries,
@@ -459,6 +502,26 @@ function capTotalSize(
  * Never throws: on an unexpected failure it returns entry 0 alone.
  */
 export function createExceptionChain(error: unknown): BugSplatExceptionEntry[] {
+    return createExceptionsPayload(error).exceptions;
+}
+
+/**
+ * Build what `post()` sends in the `exceptions` form field: the chain
+ * `createExceptionChain()` returns, plus a `debugMeta` row for each file of
+ * `debugIds` (script file to source map debug ID) that a stack in the chain
+ * names.
+ *
+ * Files are matched against the stacks as captured, before the size cap
+ * shortens any of them. `debugMeta` only uses the room the capped chain leaves
+ * under `MAX_EXCEPTIONS_BYTES`: rows that do not fit are left out, last
+ * first, and the key is absent when no row remains.
+ *
+ * Never throws: on an unexpected failure it returns entry 0 alone.
+ */
+export function createExceptionsPayload(
+    error: unknown,
+    debugIds: Record<string, string> = {},
+): BugSplatExceptionsPayload {
     const root = createEntry(error, 0, null, null);
     const entries: BugSplatExceptionEntry[] = [root];
     const visited = new Set<object>();
@@ -507,8 +570,19 @@ export function createExceptionChain(error: unknown): BugSplatExceptionEntry[] {
             visited.add(error);
             walk(error, 0);
         }
-        return capTotalSize(entries);
+        const matched = createDebugMeta(
+            entries.map((entry) => entry.stack),
+            debugIds,
+        );
+        const payload: BugSplatExceptionsPayload = {
+            exceptions: capTotalSize(entries),
+        };
+        const debugMeta = fitDebugMeta(payload.exceptions, matched);
+        if (debugMeta.length > 0) {
+            payload.debugMeta = debugMeta;
+        }
+        return payload;
     } catch {
-        return [root];
+        return { exceptions: [root] };
     }
 }

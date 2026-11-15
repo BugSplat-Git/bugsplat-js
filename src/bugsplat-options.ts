@@ -56,6 +56,17 @@ export interface BugSplatOptions {
      */
     attachments?: Array<BugSplatAttachment>;
     /**
+     * Source map debug IDs for `post()`, as script file to debug ID. The file
+     * must be written exactly as it appears in stack frames (same scheme,
+     * host, path and query string) and the ID as the build wrote it.
+     *
+     * Entries here take precedence over the ones `post()` reads from
+     * `globalThis._debugIds`. Use it for scripts that ran in another context,
+     * for example IDs collected there with `getDebugIds()`.
+     * Not used by `postFeedback()`.
+     */
+    debugIds?: Record<string, string>;
+    /**
      * Additional info about the crash or feedback
      */
     description?: string;
