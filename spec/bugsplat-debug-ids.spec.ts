@@ -551,6 +551,56 @@ describe('createDebugMeta', () => {
         expect(createDebugMeta([stack], debugIds)).toEqual([]);
     });
 
+    it('does not match a file that is only the end of a longer path', () => {
+        const ids = { '/srv/app.js': ID_A };
+        const stack = 'Error\n    at f (/opt/srv/app.js:1:1)';
+
+        expect(createDebugMeta([stack], ids)).toEqual([]);
+        expect(createDebugMeta(['f@/opt/srv/app.js:1:1'], ids)).toEqual([]);
+    });
+
+    it('does not match a file that only the error message names', () => {
+        const stack =
+            `Error: Unable to fetch ${vendor}: 404 (see ${lazy}:1:1)\n` +
+            `    at load (${index}:1:10)`;
+
+        expect(createDebugMeta([stack], debugIds)).toEqual([
+            { file: index, debugId: ID_A },
+        ]);
+    });
+
+    it('does not match a message line that looks like a frame location', () => {
+        const stack = `Error: failed\n${vendor}:1:1\n    at load (${index}:1:10)`;
+
+        expect(createDebugMeta([stack], debugIds)).toEqual([
+            { file: index, debugId: ID_A },
+        ]);
+    });
+
+    it('matches the file that called eval in a V8 frame', () => {
+        const stack =
+            'Error\n' +
+            `    at eval (eval at render (${index}:1:2345), <anonymous>:1:7)`;
+
+        expect(createDebugMeta([stack], debugIds)).toEqual([
+            { file: index, debugId: ID_A },
+        ]);
+    });
+
+    it('matches frames whose file has a port, a drive letter or parentheses', () => {
+        const port = 'http://localhost:5173/assets/index.js';
+        const drive = 'C:\\Program Files (x86)\\app\\main.js';
+        const stack =
+            `Error\n    at f (${port}:1:2)\n    at async g (${drive}:3:4)\n    at ${port}:5:6`;
+
+        expect(
+            createDebugMeta([stack], { [drive]: ID_B, [port]: ID_A }),
+        ).toEqual([
+            { file: port, debugId: ID_A },
+            { file: drive, debugId: ID_B },
+        ]);
+    });
+
     it('skips entries without a stack', () => {
         const stack = `Error\n    at f (${index}:1:1)`;
 

@@ -27,6 +27,11 @@ const LOCATION = /^(.+?)(?::\d+){1,2}$/;
  */
 const FILE_START = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 /**
+ * The location of the `eval` call inside a V8 frame for evaluated code:
+ * `eval (eval at render (https://x/index.js:1:2), <anonymous>:1:1)`.
+ */
+const V8_EVAL_ORIGIN = /\((\S+:\d+)\)/;
+/**
  * Firefox's marker for code created by `eval` or `new Function` inside a file.
  */
 const FIREFOX_EVAL = / line \d+ > /;
@@ -100,6 +105,14 @@ export function getStackFile(stack: string): string | undefined {
                 : getGeckoLocation(firstFrame.trim());
     }
 
+    return getLocationFile(location);
+}
+
+/**
+ * The file of a `file:line:column` location, or `undefined` when the location
+ * names no file (`<anonymous>`, `[native code]`, Firefox `eval` code).
+ */
+function getLocationFile(location: string | undefined): string | undefined {
     const file = location?.match(LOCATION)?.[1];
     if (
         file === undefined ||
@@ -110,6 +123,38 @@ export function getStackFile(stack: string): string | undefined {
         return undefined;
     }
     return file;
+}
+
+/**
+ * The file each frame of a stack string names, in frame order. Frames that
+ * name no file are left out, and so is everything that is not a frame: a V8
+ * stack starts with the error's message, which can hold file names of its own.
+ *
+ * A V8 frame for code created by `eval` gives the file that called `eval`,
+ * which is the file its position is reported against.
+ */
+function getFrameFiles(stack: string): string[] {
+    const lines = stack.split('\n');
+    const isV8 = lines.some((line) => V8_FRAME.test(line));
+
+    const files: string[] = [];
+    for (const line of lines) {
+        const frame = line.trim();
+        let location: string | undefined;
+        if (!isV8) {
+            location = frame.length > 0 ? getGeckoLocation(frame) : undefined;
+        } else if (V8_FRAME.test(line)) {
+            const text = frame.slice(3);
+            location =
+                getV8Location(text) ?? text.match(V8_EVAL_ORIGIN)?.[1];
+        }
+
+        const file = getLocationFile(location);
+        if (file !== undefined) {
+            files.push(file);
+        }
+    }
+    return files;
 }
 
 /**
@@ -183,7 +228,9 @@ export function collectDebugIds(
 
 /**
  * The `debugMeta` list for a set of stacks: one row for each file of
- * `debugIds` that a stack names as a frame location (`<file>:<line>`).
+ * `debugIds` that is the file of a frame in one of the stacks. A file that a
+ * stack only mentions, in the error's message or as the end of a longer path,
+ * gets no row.
  *
  * Rows are ordered by where the file first appears, the posted error's top
  * frame first, so that when the size cap leaves rows out from the end it
@@ -193,22 +240,25 @@ export function createDebugMeta(
     stacks: Array<string | undefined>,
     debugIds: Record<string, string>,
 ): BugSplatDebugMeta[] {
-    const rows: Array<BugSplatDebugMeta & { entry: number; index: number }> =
-        [];
+    const rows: BugSplatDebugMeta[] = [];
     try {
-        for (const file of Object.keys(debugIds)) {
-            for (let entry = 0; entry < stacks.length; entry++) {
-                const index = stacks[entry]?.indexOf(`${file}:`) ?? -1;
-                if (index !== -1) {
-                    rows.push({ file, debugId: debugIds[file], entry, index });
-                    break;
+        const listed = new Set<string>();
+        for (const stack of stacks) {
+            if (typeof stack !== 'string') {
+                continue;
+            }
+            for (const file of getFrameFiles(stack)) {
+                if (
+                    !listed.has(file) &&
+                    Object.prototype.hasOwnProperty.call(debugIds, file)
+                ) {
+                    listed.add(file);
+                    rows.push({ file, debugId: debugIds[file] });
                 }
             }
         }
     } catch {
         return [];
     }
-    return rows
-        .sort((a, b) => a.entry - b.entry || a.index - b.index)
-        .map(({ file, debugId }) => ({ file, debugId }));
+    return rows;
 }
