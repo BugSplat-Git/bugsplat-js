@@ -587,6 +587,24 @@ describe('createDebugMeta', () => {
         ]);
     });
 
+    it('matches the file that called eval through nested evals', () => {
+        const stack =
+            'Error\n' +
+            `    at eval (eval at a (eval at b (${index}:1:2)), <anonymous>:1:1)`;
+
+        expect(createDebugMeta([stack], debugIds)).toEqual([
+            { file: index, debugId: ID_A },
+        ]);
+    });
+
+    it('reads an eval frame made of unclosed parentheses in linear time', () => {
+        const stack = `Error\n    at eval (eval at ${'(!'.repeat(50_000)}`;
+
+        const start = performance.now();
+        expect(createDebugMeta([stack], debugIds)).toEqual([]);
+        expect(performance.now() - start).toBeLessThan(500);
+    });
+
     it('matches frames whose file has a port, a drive letter or parentheses', () => {
         const port = 'http://localhost:5173/assets/index.js';
         const drive = 'C:\\Program Files (x86)\\app\\main.js';

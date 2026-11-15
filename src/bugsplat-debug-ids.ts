@@ -29,8 +29,10 @@ const FILE_START = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 /**
  * The location of the `eval` call inside a V8 frame for evaluated code:
  * `eval (eval at render (https://x/index.js:1:2), <anonymous>:1:1)`.
+ * The location cannot hold a parenthesis, which keeps the search linear in
+ * the length of the frame.
  */
-const V8_EVAL_ORIGIN = /\((\S+:\d+)\)/;
+const V8_EVAL_ORIGIN = /\(([^\s()]+:\d+)\)/;
 /**
  * Firefox's marker for code created by `eval` or `new Function` inside a file.
  */
